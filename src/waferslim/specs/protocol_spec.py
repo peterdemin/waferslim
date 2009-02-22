@@ -3,7 +3,7 @@ BDD-style Lancelot specifications for the behaviour of the core library classes
 '''
 
 import lancelot
-from waferslim.protocol import SlimProtocol, UnpackingError
+from waferslim.protocol import SlimProtocol, UnpackingError, RequestResponder
 
 SAMPLE_DATA = [
                ([],                 '[000000:]'),
@@ -68,6 +68,36 @@ class UnpackBehaviour(object):
             spec.unpack(packed).should_be(unpacked)
 
 lancelot.grouping(UnpackBehaviour)
+
+@lancelot.verifiable
+def request_responder_behaviour():
+    ''' RequestResponder should send an ACK, then repeatedly recv a message 
+    header and message contents, and then EITHER send a response and loop back 
+    to recv; OR if the message content is a "bye" then terminate'''
+    request = lancelot.MockSpec()
+    spec = lancelot.Spec(RequestResponder())
+    spec.respond_to(request).should_collaborate_with(
+        request.send('Slim -- V0.0\n'.encode('utf-8')).will_return(2),
+        request.recv(7).will_return('000009:'.encode('utf-8')),
+        request.recv(9).will_return('[000000:]'.encode('utf-8')),
+        request.send('000009:[000000:]'.encode('utf-8')).will_return(4),
+        request.recv(7).will_return('000003:'.encode('utf-8')),
+        request.recv(3).will_return('bye'.encode('utf-8')),
+        and_result=(7+9+7+3, 2+4))
+    
+    request = lancelot.MockSpec()
+    spec = lancelot.Spec(RequestResponder())
+    spec.respond_to(request).should_collaborate_with(
+        request.send('Slim -- V0.0\n'.encode('utf-8')).will_return(2),
+        request.recv(7).will_return('000009:'.encode('utf-8')),
+        request.recv(9).will_return('[000000:]'.encode('utf-8')),
+        request.send('000009:[000000:]'.encode('utf-8')).will_return(4),
+        request.recv(7).will_return('000009:'.encode('utf-8')),
+        request.recv(9).will_return('[000000:]'.encode('utf-8')),
+        request.send('000009:[000000:]'.encode('utf-8')).will_return(8),
+        request.recv(7).will_return('000003:'.encode('utf-8')),
+        request.recv(3).will_return('bye'.encode('utf-8')),
+        and_result=(7+9+7+9+7+3, 2+4+8))
 
 if __name__ == '__main__':
     lancelot.verify()
