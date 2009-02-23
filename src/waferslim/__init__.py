@@ -10,6 +10,7 @@ Copyright 2009 by the author(s). All rights reserved
 __version__ = "0.1"
 
 class WaferSlimException(Exception):
+    ''' Base Exception class for this package '''
     pass
 
 __all__ = ['WaferSlimException']

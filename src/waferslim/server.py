@@ -7,7 +7,7 @@ The latest source code is available at http://code.launchpad.net/waferslim.
 
 Copyright 2009 by the author(s). All rights reserved 
 '''
-import logging, SocketServer, threading
+import logging, SocketServer
 
 from waferslim.protocol import RequestResponder
 

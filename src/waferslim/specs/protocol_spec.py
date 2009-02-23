@@ -3,7 +3,7 @@ BDD-style Lancelot specifications for the behaviour of the core library classes
 '''
 
 import lancelot
-from waferslim.protocol import SlimProtocol, UnpackingError, RequestResponder
+from waferslim.protocol import pack, unpack, UnpackingError, RequestResponder
 
 SAMPLE_DATA = [
                ([],                 '[000000:]'),
@@ -13,7 +13,7 @@ SAMPLE_DATA = [
               ]
 
 class PackBehaviour(object):
-    ''' Group of specs for protocol pack() behaviour '''
+    ''' Group of specs for pack() behaviour '''
     
     @lancelot.verifiable
     def items_length_item_format(self):
@@ -23,7 +23,7 @@ class PackBehaviour(object):
         After the [ is the 6 digit number of items in the list followed by a :.
         Then comes each item which is composed of a 6 digit length a : and 
         then the value of the item followed by a :. '''
-        spec = lancelot.Spec(SlimProtocol())
+        spec = lancelot.Spec(pack)
         for unpacked, packed in SAMPLE_DATA:
             spec.pack(unpacked).should_be(packed)
             
@@ -31,19 +31,19 @@ class PackBehaviour(object):
     def pack_non_strings(self):
         ''' Use str() co-ercion for encoding non-string values, except for
         None which encodes as "null" ''' 
-        spec = lancelot.Spec(SlimProtocol())
+        spec = lancelot.Spec(pack)
         spec.pack([1]).should_be('[000001:000001:1:]')
         spec.pack([None]).should_be('[000001:000004:null:]') #TODO: check this?!
 
 lancelot.grouping(PackBehaviour)
 
 class UnpackBehaviour(object):
-    ''' Group of specs for protocol unpack() behaviour '''
+    ''' Group of specs for unpack() behaviour '''
     
     @lancelot.verifiable
     def unpack_strings_only(self):
         ''' Unpacking a non-string should raise an error ''' 
-        spec = lancelot.Spec(SlimProtocol())
+        spec = lancelot.Spec(unpack)
         spec.unpack(None).should_raise(TypeError('None is not a string'))
         spec.unpack(1).should_raise(TypeError('1 is not a string'))
         spec.unpack([]).should_raise(TypeError('[] is not a string'))
@@ -52,7 +52,7 @@ class UnpackBehaviour(object):
     def require_square_brackets(self):
         ''' Unpacking a string without a leading square bracket, 
         or a string without an ending square bracket should raise an error ''' 
-        spec = lancelot.Spec(SlimProtocol())
+        spec = lancelot.Spec(unpack)
         spec.unpack('').should_raise(
             UnpackingError("'' has no leading '['"))
         spec.unpack('[hello').should_raise(
@@ -63,7 +63,7 @@ class UnpackBehaviour(object):
     @lancelot.verifiable
     def items_length_item_format(self):
         ''' Unpacking should reverse the encoding process '''
-        spec = lancelot.Spec(SlimProtocol())
+        spec = lancelot.Spec(unpack)
         for unpacked, packed in SAMPLE_DATA:
             spec.unpack(packed).should_be(unpacked)
 
@@ -75,25 +75,32 @@ def request_responder_behaviour():
     header and message contents, and then EITHER send a response and loop back 
     to recv; OR if the message content is a "bye" then terminate'''
     request = lancelot.MockSpec()
+    instructions = lancelot.MockSpec()
     spec = lancelot.Spec(RequestResponder())
-    spec.respond_to(request).should_collaborate_with(
+    spec.respond_to(request, instructions=lambda data: instructions)
+    spec.should_collaborate_with(
         request.send('Slim -- V0.0\n'.encode('utf-8')).will_return(2),
         request.recv(7).will_return('000009:'.encode('utf-8')),
         request.recv(9).will_return('[000000:]'.encode('utf-8')),
+        instructions.execute().will_return([]),
         request.send('000009:[000000:]'.encode('utf-8')).will_return(4),
         request.recv(7).will_return('000003:'.encode('utf-8')),
         request.recv(3).will_return('bye'.encode('utf-8')),
         and_result=(7+9+7+3, 2+4))
     
     request = lancelot.MockSpec()
+    instructions = lancelot.MockSpec()
     spec = lancelot.Spec(RequestResponder())
-    spec.respond_to(request).should_collaborate_with(
+    spec.respond_to(request, instructions=lambda data: instructions)
+    spec.should_collaborate_with(
         request.send('Slim -- V0.0\n'.encode('utf-8')).will_return(2),
         request.recv(7).will_return('000009:'.encode('utf-8')),
         request.recv(9).will_return('[000000:]'.encode('utf-8')),
+        instructions.execute().will_return([]),
         request.send('000009:[000000:]'.encode('utf-8')).will_return(4),
         request.recv(7).will_return('000009:'.encode('utf-8')),
         request.recv(9).will_return('[000000:]'.encode('utf-8')),
+        instructions.execute().will_return([]),
         request.send('000009:[000000:]'.encode('utf-8')).will_return(8),
         request.recv(7).will_return('000003:'.encode('utf-8')),
         request.recv(3).will_return('bye'.encode('utf-8')),
