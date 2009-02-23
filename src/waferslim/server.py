@@ -43,5 +43,5 @@ class WaferSlimServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
         logging.info("WaferSlimServer started on %s:%s" % self.server_address)
 
 if __name__ == "__main__":
-    logging.root.setLevel(logging.DEBUG)
+    logging.root.setLevel(logging.INFO)
     WaferSlimServer('localhost', 8989).serve_forever()

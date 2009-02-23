@@ -3,7 +3,10 @@ BDD-style Lancelot specifications for the behaviour of the core library classes
 '''
 
 import lancelot
-from waferslim.protocol import pack, unpack, UnpackingError, RequestResponder
+from lancelot.comparators import Type
+from waferslim.protocol import pack, unpack, UnpackingError, \
+                               instruction_for, Instructions, RequestResponder
+from waferslim.execution import Make, Import, Call, CallAndAssign 
 
 SAMPLE_DATA = [
                ([],                 '[000000:]'),
@@ -74,8 +77,8 @@ def request_responder_behaviour():
     ''' RequestResponder should send an ACK, then repeatedly recv a message 
     header and message contents, and then EITHER send a response and loop back 
     to recv; OR if the message content is a "bye" then terminate'''
-    request = lancelot.MockSpec()
-    instructions = lancelot.MockSpec()
+    request = lancelot.MockSpec(name='request')
+    instructions = lancelot.MockSpec(name='instructions')
     spec = lancelot.Spec(RequestResponder())
     spec.respond_to(request, instructions=lambda data: instructions)
     spec.should_collaborate_with(
@@ -88,8 +91,8 @@ def request_responder_behaviour():
         request.recv(3).will_return('bye'.encode('utf-8')),
         and_result=(7+9+7+3, 2+4))
     
-    request = lancelot.MockSpec()
-    instructions = lancelot.MockSpec()
+    request = lancelot.MockSpec(name='request')
+    instructions = lancelot.MockSpec(name='instructions')
     spec = lancelot.Spec(RequestResponder())
     spec.respond_to(request, instructions=lambda data: instructions)
     spec.should_collaborate_with(
@@ -105,6 +108,39 @@ def request_responder_behaviour():
         request.recv(7).will_return('000003:'.encode('utf-8')),
         request.recv(3).will_return('bye'.encode('utf-8')),
         and_result=(7+9+7+9+7+3, 2+4+8))
+    
+@lancelot.verifiable
+def instruction_for_behaviour():
+    ''' instruction_for should return instantiate the correct type of 
+    instruction, based on the name given in the list passed to it ''' 
+    spec = lancelot.Spec(instruction_for)
+    known_instructions = {'make':Type(Make),
+                          'import':Type(Import),
+                          'call':Type(Call),
+                          'callAndAssign':Type(CallAndAssign)}
+    for name, instruction in known_instructions.items():
+        spec.instruction_for(['id', name, []]).should_be(instruction)
+
+@lancelot.verifiable
+def instructions_behaviour():
+    ''' Instructions should collaborate with instruction_for to instantiate
+    a list of instructions, which execute() loops through to execute'''
+    mock_fn = lancelot.MockSpec(name='mock_fn')
+    mock_make = lancelot.MockSpec(name='mock_make')
+    mock_call = lancelot.MockSpec(name='mock_call')
+    a_list = [
+              ['id_0', 'make', 'instance', 'fixture', 'argument'],
+              ['id_1', 'call', 'instance', 'f', '3']
+             ]
+    instructions = Instructions(a_list, 
+                                lambda item: mock_fn.instruction_for(item))
+    spec = lancelot.Spec(instructions) 
+    spec.execute().should_collaborate_with(
+            mock_fn.instruction_for(a_list[0]).will_return(mock_make),
+            mock_make.execute().will_return([]),
+            mock_fn.instruction_for(a_list[1]).will_return(mock_call),
+            mock_call.execute().will_return([]),
+            and_result = [])
 
 if __name__ == '__main__':
     lancelot.verify()

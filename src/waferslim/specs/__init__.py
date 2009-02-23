@@ -9,5 +9,5 @@ Copyright 2009 by the author(s). All rights reserved
 import lancelot
 
 if __name__ == '__main__':
-    import waferslim.specs.protocol_spec
+    from waferslim.specs import protocol_spec, execution_spec
     lancelot.verify()

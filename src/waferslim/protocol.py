@@ -9,7 +9,7 @@ Copyright 2009 by the author(s). All rights reserved
 '''
 
 from waferslim import WaferSlimException
-from waferslim.execution import Instructions
+from waferslim.execution import Import, Make, Call, CallAndAssign 
 
 class UnpackingError(WaferSlimException):
     ''' An attempt was made to unpack messages that do not conform 
@@ -101,7 +101,35 @@ def _pack_item(item):
     
     str_item = item and str(item) or 'null'
     return _ITEM_ENCODING % (len(str_item), _SEPARATOR, str_item)
+
+_INSTRUCTION_TYPES = {'make':Make,
+                      'import':Import,
+                      'call':Call,
+                      'callAndAssign':CallAndAssign }
+_ID_POSITION = 0
+_TYPE_POSITION = 1
+
+def instruction_for(params):
+    ''' Factory method for Instruction types '''
+    instruction_type = params.pop(_TYPE_POSITION)
+    id = params.pop(_ID_POSITION)
+    return _INSTRUCTION_TYPES[instruction_type](id, params)
+
+class Instructions:
+    ''' Container for executable sequence of Instruction-s '''
     
+    def __init__(self, unpacked_list, instruction_for=instruction_for):
+        ''' Provide an unpacked list of strings that will be converted 
+        into a sequence of Instruction-s to execute '''
+        self._unpacked_list = unpacked_list
+        self._instruction_for = instruction_for
+    
+    def execute(self):
+        ''' Create and execute Instruction-s, returning the results '''
+        for item in self._unpacked_list:
+            self._instruction_for(item).execute()
+        return []
+                
 class RequestResponder(object):
     ''' Mixin class for responding to Slim requests.
     Logic mostly reverse engineered from Java test classes especially 
