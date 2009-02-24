@@ -4,9 +4,10 @@ BDD-style Lancelot specifications for the behaviour of the core library classes
 
 import lancelot
 from lancelot.comparators import Type
-from waferslim.protocol import pack, unpack, UnpackingError, \
-                               instruction_for, Instructions, RequestResponder
-from waferslim.execution import Make, Import, Call, CallAndAssign 
+from waferslim.protocol import pack, unpack, UnpackingError, instruction_for, \
+                               Results, Instructions, RequestResponder
+from waferslim.execution import ExecutionContext, \
+                                Make, Import, Call, CallAndAssign 
 
 SAMPLE_DATA = [
                ([],                 '[000000:]'),
@@ -38,8 +39,6 @@ class PackBehaviour(object):
         spec.pack([1]).should_be('[000001:000001:1:]')
         spec.pack([None]).should_be('[000001:000004:null:]') #TODO: check this?!
 
-lancelot.grouping(PackBehaviour)
-
 class UnpackBehaviour(object):
     ''' Group of specs for unpack() behaviour '''
     
@@ -70,13 +69,11 @@ class UnpackBehaviour(object):
         for unpacked, packed in SAMPLE_DATA:
             spec.unpack(packed).should_be(unpacked)
 
-lancelot.grouping(UnpackBehaviour)
-
 @lancelot.verifiable
 def request_responder_behaviour():
-    ''' RequestResponder should send an ACK, then repeatedly recv a message 
-    header and message contents, and then EITHER send a response and loop back 
-    to recv; OR if the message content is a "bye" then terminate'''
+    ''' RequestResponder should send an ACK then recv a message 
+    header and message contents: then EITHER send a response and loop back 
+    to recv; OR if the message content is a "bye" then terminate '''
     request = lancelot.MockSpec(name='request')
     instructions = lancelot.MockSpec(name='instructions')
     spec = lancelot.Spec(RequestResponder())
@@ -85,7 +82,7 @@ def request_responder_behaviour():
         request.send('Slim -- V0.0\n'.encode('utf-8')).will_return(2),
         request.recv(7).will_return('000009:'.encode('utf-8')),
         request.recv(9).will_return('[000000:]'.encode('utf-8')),
-        instructions.execute().will_return([]),
+        instructions.execute(Type(ExecutionContext), Type(Results())),
         request.send('000009:[000000:]'.encode('utf-8')).will_return(4),
         request.recv(7).will_return('000003:'.encode('utf-8')),
         request.recv(3).will_return('bye'.encode('utf-8')),
@@ -99,11 +96,11 @@ def request_responder_behaviour():
         request.send('Slim -- V0.0\n'.encode('utf-8')).will_return(2),
         request.recv(7).will_return('000009:'.encode('utf-8')),
         request.recv(9).will_return('[000000:]'.encode('utf-8')),
-        instructions.execute().will_return([]),
+        instructions.execute(Type(ExecutionContext), Type(Results())),
         request.send('000009:[000000:]'.encode('utf-8')).will_return(4),
         request.recv(7).will_return('000009:'.encode('utf-8')),
         request.recv(9).will_return('[000000:]'.encode('utf-8')),
-        instructions.execute().will_return([]),
+        instructions.execute(Type(ExecutionContext), Type(Results())),
         request.send('000009:[000000:]'.encode('utf-8')).will_return(8),
         request.recv(7).will_return('000003:'.encode('utf-8')),
         request.recv(3).will_return('bye'.encode('utf-8')),
@@ -134,13 +131,18 @@ def instructions_behaviour():
              ]
     instructions = Instructions(a_list, 
                                 lambda item: mock_fn.instruction_for(item))
-    spec = lancelot.Spec(instructions) 
-    spec.execute().should_collaborate_with(
+    spec = lancelot.Spec(instructions)
+    ctx = ExecutionContext()
+    results = Results() 
+    spec.execute(ctx, results).should_collaborate_with(
             mock_fn.instruction_for(a_list[0]).will_return(mock_make),
-            mock_make.execute().will_return([]),
+            mock_make.execute(ctx, results),
             mock_fn.instruction_for(a_list[1]).will_return(mock_call),
-            mock_call.execute().will_return([]),
-            and_result = [])
+            mock_call.execute(ctx, results)
+        )
+
+lancelot.grouping(PackBehaviour)
+lancelot.grouping(UnpackBehaviour)
 
 if __name__ == '__main__':
     lancelot.verify()

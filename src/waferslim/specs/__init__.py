@@ -1,9 +1,5 @@
 '''
-WaferSlim specs (written using the lancelot BDD package).
-    
-The latest source code is available at http://code.launchpad.net/waferslim.
-
-Copyright 2009 by the author(s). All rights reserved 
+BDD-style Lancelot specifications for the behaviour of the core library classes
 '''
 
 import lancelot

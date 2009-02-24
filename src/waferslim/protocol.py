@@ -9,7 +9,8 @@ Copyright 2009 by the author(s). All rights reserved
 '''
 
 from waferslim import WaferSlimException
-from waferslim.execution import Import, Make, Call, CallAndAssign 
+from waferslim.execution import ExecutionContext, \
+                                Make, Import, Call, CallAndAssign
 
 class UnpackingError(WaferSlimException):
     ''' An attempt was made to unpack messages that do not conform 
@@ -112,31 +113,40 @@ _TYPE_POSITION = 1
 def instruction_for(params):
     ''' Factory method for Instruction types '''
     instruction_type = params.pop(_TYPE_POSITION)
-    id = params.pop(_ID_POSITION)
-    return _INSTRUCTION_TYPES[instruction_type](id, params)
+    instruction_id = params.pop(_ID_POSITION)
+    return _INSTRUCTION_TYPES[instruction_type](instruction_id, params)
+ 
+class Results(object):
+    ''' Collecting parameter for results of Instruction execute() methods '''
+    def ok(self, instruction):
+        pass #TODO!
+    def raised(self, instruction, exception):
+        pass #TODO!
 
-class Instructions:
+class Instructions(object):
     ''' Container for executable sequence of Instruction-s '''
     
-    def __init__(self, unpacked_list, instruction_for=instruction_for):
+    def __init__(self, unpacked_list, factory_method=instruction_for):
         ''' Provide an unpacked list of strings that will be converted 
         into a sequence of Instruction-s to execute '''
         self._unpacked_list = unpacked_list
-        self._instruction_for = instruction_for
+        self._instruction_for = factory_method
     
-    def execute(self):
-        ''' Create and execute Instruction-s, returning the results '''
+    def execute(self, execution_context, results):
+        ''' Create and execute Instruction-s, collecting the results '''
         for item in self._unpacked_list:
-            self._instruction_for(item).execute()
-        return []
+            instruction = self._instruction_for(item)
+            instruction.execute(execution_context, results)
                 
 class RequestResponder(object):
     ''' Mixin class for responding to Slim requests.
     Logic mostly reverse engineered from Java test classes especially 
     fitnesse.responders.run.slimResponder.SlimTestSystemTest '''
 
-    def respond_to(self, request, 
-                   byte_encoding='utf-8', instructions=Instructions):
+    def respond_to(self, request, byte_encoding='utf-8', 
+                   instructions=Instructions,
+                   execution_context=ExecutionContext(),
+                   results=Results()):
         ''' Entry point for mixin: respond to a Slim protocol request.
         Basic format of every interaction is:
         - every request requires an initial ACK with the Slim Version
@@ -145,9 +155,10 @@ class RequestResponder(object):
         '''
         ack_bytes = self._send_ack(request, byte_encoding)
         
-        received, sent = self._message_loop(request, 
-                                            byte_encoding, 
-                                            instructions)
+        received, sent = self._message_loop(request, byte_encoding, 
+                                            instructions,
+                                            execution_context,
+                                            results)
         
         return received, sent + ack_bytes
     
@@ -157,7 +168,8 @@ class RequestResponder(object):
         self.debug('Send Ack')
         return request.send(response)
     
-    def _message_loop(self, request, byte_encoding, instructions):
+    def _message_loop(self, request, byte_encoding, 
+                      instructions, execution_context, results):
         ''' Receive messages from the request and send responses.
         Each message starts with a numeric header (number of digits defined
         in _NUMERIC_LENGTH) which contains the byte length
@@ -176,11 +188,13 @@ class RequestResponder(object):
             if _DISCONNECT == data:
                 break
             else:
-                results = instructions(unpack(data)).execute()
-                msg = pack(results)
-                response = self._format_response(msg, byte_encoding)
-                sent += request.send(response)
-                self.debug('Send response: %r' % msg)
+                instruction_list = instructions(unpack(data))
+                instruction_list.execute(execution_context, results)
+                response = pack([]) #TODO: results!
+                formatted_response = self._format_response(response, 
+                                                           byte_encoding)
+                sent += request.send(formatted_response)
+                self.debug('Send response: %r' % response)
         
         return received, sent
     

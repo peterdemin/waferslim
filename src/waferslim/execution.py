@@ -6,25 +6,82 @@ The latest source code is available at http://code.launchpad.net/waferslim.
 
 Copyright 2009 by the author(s). All rights reserved 
 '''
+import sys
 from waferslim import WaferSlimException
 
 class InstructionException(WaferSlimException):
     ''' Indicate an Instruction-related error ''' 
     pass
 
+class ExecutionContext(object):
+    ''' Contextual execution environment to allow simultaneous code executions
+    to take place without interfering with each other.
+    TODO: see whether import hooks or similar can be used to isolate loaded
+    modules across contexts: ?maybe with python 3.1 or 2.7? '''
+    
+    def __init__(self):
+        ''' Set up the isolated context ''' 
+        self._instances = {} 
+    
+    def get_type(self, fully_qualified_name):
+        ''' Get a type instance from the context '''
+        if fully_qualified_name in __builtins__:
+            return __builtins__[fully_qualified_name]
+        
+        dot_pos = fully_qualified_name.rfind('.')
+        if dot_pos == -1:
+            msg = 'Type %s has no module' % fully_qualified_name
+            raise TypeError(msg)
+
+        module_part = fully_qualified_name[:dot_pos]
+        type_part = fully_qualified_name[dot_pos + 1:]
+        try:
+            module = self.get_module(module_part)
+            _type = getattr(module, type_part)
+            return _type
+        except ImportError:
+            msg = 'Module for %s not found' % fully_qualified_name
+            raise TypeError(msg)
+
+    def get_module(self, fully_qualified_name):
+        ''' Perform nested module import / lookup as needed '''
+        if fully_qualified_name in sys.modules:
+            return sys.modules[fully_qualified_name]
+        dot_pos = fully_qualified_name.rfind('.')
+        if dot_pos == -1:
+            return __import__(fully_qualified_name)
+        else:
+            parent_module = fully_qualified_name[:dot_pos]
+            unqualified_name = fully_qualified_name[dot_pos + 1:]
+            parent = self.get_module(parent_module)
+            return __import__(fully_qualified_name, 
+                              fromlist=[unqualified_name])
+    
+    def store_instance(self, name, value):
+        ''' Add a name=value pair to the context locals '''
+        self._instances[name] = value
+
+    def get_instance(self, name):
+        ''' Get value from a name=value pair in the context locals '''
+        return self._instances[name]
+     
 class Instruction(object):
     ''' Base class for instructions '''
     
-    def __init__(self, id, params):
+    def __init__(self, instruction_id, params):
         ''' Specify the id of this instruction, and its params.
         Params must be a list. '''
         if not isinstance(params, list):
             raise InstructionException('%r is not a list' % params)
-        self._id = id
-        self._params = tuple(params)
+        self._id = instruction_id
+        self._params = params
         
-    def execute(self):
-        ''' Execute this instruction and return the results '''
+    def instruction_id(self):
+        ''' Return the id of this instruction '''
+        return self._id
+        
+    def execute(self, execution_context, results):
+        ''' Execute within the context and add to the results '''
 #        raise InstructionException('Can only execute() a sub-class')
         pass
 
@@ -34,10 +91,26 @@ class Import(Instruction):
 
 class Make(Instruction):
     ''' A "make <instance>, <class>, <args>..." instruction '''
-    pass
+    
+    def execute(self, execution_context, results):
+        ''' Create a class instance and add it to the execution context ''' 
+        name = self._params[0]
+        try:
+            target = execution_context.get_type(self._params[1])
+        except (TypeError, ImportError), error:
+            results.raised(self, error)
+            return
+            
+        args = tuple(self._params[2])
+        try:
+            instance = target(*args)
+            execution_context.store_instance(name, instance)
+            results.ok(self)
+        except TypeError:
+            results.raised(self, AttributeError())
 
 class Call(Instruction):
-    ''' A "call <instance>,<function>,<args>..." instruction '''
+    ''' A "call <instance>, <function>, <args>..." instruction '''
     pass
 
 class CallAndAssign(Instruction):

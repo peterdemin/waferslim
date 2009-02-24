@@ -44,4 +44,7 @@ class WaferSlimServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
 if __name__ == "__main__":
     logging.root.setLevel(logging.INFO)
+    #TODO: args: -p port, -v verbose
+    #TODO: proper logging configuration
+    #TODO: graceful stop, start, restart, is-already-started
     WaferSlimServer('localhost', 8989).serve_forever()
