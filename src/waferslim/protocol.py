@@ -9,8 +9,9 @@ Copyright 2009 by the author(s). All rights reserved
 '''
 
 from waferslim import WaferSlimException
-from waferslim.execution import ExecutionContext, \
-                                Make, Import, Call, CallAndAssign
+from waferslim.execution import ExecutionContext, InstructionException, \
+        NoSuchClassException, NoSuchConstructorException, \
+        Make, Import, Call, CallAndAssign
 
 class UnpackingError(WaferSlimException):
     ''' An attempt was made to unpack messages that do not conform 
@@ -115,13 +116,41 @@ def instruction_for(params):
     instruction_type = params.pop(_TYPE_POSITION)
     instruction_id = params.pop(_ID_POSITION)
     return _INSTRUCTION_TYPES[instruction_type](instruction_id, params)
+
+_OK = 'OK'
+_EXCEPTION = '__EXCEPTION__:'
+_EXCEPTIONS = {InstructionException:'MALFORMED_INSTRUCTION',
+               NoSuchClassException:'NO_CLASS',
+               NoSuchConstructorException:'COULD_NOT_INVOKE_CONSTRUCTOR'
+               }
  
 class Results(object):
     ''' Collecting parameter for results of Instruction execute() methods '''
-    def ok(self, instruction):
-        pass #TODO!
+    def __init__(self):
+        ''' Set up the list to hold the collected results '''
+        self._collected = []
+    
+    def completed_ok(self, instruction):
+        ''' An instruction has completed as expected '''
+        self._collected.append([instruction.instruction_id(), _OK])
+        
     def raised(self, instruction, exception):
-        pass #TODO!
+        ''' An instruction has raised an exception. The nature of the
+        exception will be translated into the relevant Slim protocol format.'''
+        self._collected.append([instruction.instruction_id(), 
+                                self._translate(exception)])
+    
+    def _translate(self, exception):
+        return '%s message:<<%s %s>>' % (_EXCEPTION, 
+                                         _EXCEPTIONS[type(exception)], 
+                                         exception.args[0])
+    
+    def collection(self):
+        ''' Get the collected list of results - modifications to the list 
+        will not be reflected in this collection '''
+        collected = []
+        collected.extend(self._collected)
+        return collected
 
 class Instructions(object):
     ''' Container for executable sequence of Instruction-s '''
@@ -190,7 +219,7 @@ class RequestResponder(object):
             else:
                 instruction_list = instructions(unpack(data))
                 instruction_list.execute(execution_context, results)
-                response = pack([]) #TODO: results!
+                response = pack(results.collection())
                 formatted_response = self._format_response(response, 
                                                            byte_encoding)
                 sent += request.send(formatted_response)

@@ -12,6 +12,14 @@ from waferslim import WaferSlimException
 class InstructionException(WaferSlimException):
     ''' Indicate an Instruction-related error ''' 
     pass
+ 
+class NoSuchClassException(InstructionException):
+    ''' Indicate an Make Instruction-related error ''' 
+    pass
+
+class NoSuchConstructorException(InstructionException):
+    ''' Indicate an Make Instruction-related error ''' 
+    pass
 
 class ExecutionContext(object):
     ''' Contextual execution environment to allow simultaneous code executions
@@ -30,17 +38,17 @@ class ExecutionContext(object):
         
         dot_pos = fully_qualified_name.rfind('.')
         if dot_pos == -1:
-            msg = 'Type %s has no module' % fully_qualified_name
+            msg = 'Type %s should be in a module' % fully_qualified_name
             raise TypeError(msg)
 
         module_part = fully_qualified_name[:dot_pos]
         type_part = fully_qualified_name[dot_pos + 1:]
+        module = self.get_module(module_part)
         try:
-            module = self.get_module(module_part)
             _type = getattr(module, type_part)
             return _type
-        except ImportError:
-            msg = 'Module for %s not found' % fully_qualified_name
+        except AttributeError, e:
+            msg = '%s could not be found in %s' % (type_part, module_part)
             raise TypeError(msg)
 
     def get_module(self, fully_qualified_name):
@@ -53,7 +61,7 @@ class ExecutionContext(object):
         else:
             parent_module = fully_qualified_name[:dot_pos]
             unqualified_name = fully_qualified_name[dot_pos + 1:]
-            parent = self.get_module(parent_module)
+            self.get_module(parent_module)
             return __import__(fully_qualified_name, 
                               fromlist=[unqualified_name])
     
@@ -72,7 +80,7 @@ class Instruction(object):
         ''' Specify the id of this instruction, and its params.
         Params must be a list. '''
         if not isinstance(params, list):
-            raise InstructionException('%r is not a list' % params)
+            raise TypeError('%r is not a list' % params)
         self._id = instruction_id
         self._params = params
         
@@ -98,16 +106,18 @@ class Make(Instruction):
         try:
             target = execution_context.get_type(self._params[1])
         except (TypeError, ImportError), error:
-            results.raised(self, error)
+            msg = '%s %s' % (self._params[1], error.args[0])
+            results.raised(self, NoSuchClassException(msg))
             return
             
         args = tuple(self._params[2])
         try:
             instance = target(*args)
             execution_context.store_instance(name, instance)
-            results.ok(self)
-        except TypeError:
-            results.raised(self, AttributeError())
+            results.completed_ok(self)
+        except TypeError, error:
+            msg = '%s %s' % (self._params[1], error.args[0])
+            results.raised(self, NoSuchConstructorException(msg))
 
 class Call(Instruction):
     ''' A "call <instance>, <function>, <args>..." instruction '''

@@ -4,9 +4,10 @@ BDD-style Lancelot specifications for the behaviour of the core library classes
 
 import lancelot, sys, types
 from lancelot.comparators import Type, SameAs, ExceptionValue
-from waferslim.execution import Instruction, InstructionException, \
-                                ExecutionContext, Make, Import, \
-                                Call, CallAndAssign
+from waferslim.execution import Instruction, ExecutionContext, \
+                                InstructionException, NoSuchClassException, \
+                                NoSuchConstructorException, \
+                                Make, Import, Call, CallAndAssign
 from waferslim.specs.spec_classes import ClassWithNoArgConstructor, \
                                          ClassWithOneArgConstructor, \
                                          ClassWithTwoArgConstructor
@@ -73,8 +74,9 @@ class ExecutionContextBehaviour(object):
         Requesting a non-existent type should raise TypeError.'''
         spec = lancelot.Spec(ExecutionContext())
         spec.get_module('none.such').should_raise(ImportError)
-        spec.get_type('none.such.Type').should_raise(TypeError)
+        spec.get_type('none.such.Type').should_raise(ImportError)
         spec.get_type('NoneSuchType').should_raise(TypeError)
+        spec.get_type('waferslim.Mint').should_raise(TypeError)
             
     @lancelot.verifiable
     def stores_instance(self):
@@ -98,11 +100,11 @@ class BaseInstructionBehaviour(object):
         ''' The params constructor arg must be a list '''
         new_instance_with_bad_parms = lambda: Instruction('id', 'params')
         spec = lancelot.Spec(new_instance_with_bad_parms)
-        spec.__call__().should_raise(InstructionException)
+        spec.__call__().should_raise(TypeError)
 
         new_instance_with_list_parms = lambda: Instruction('id', ['params'])
         spec = lancelot.Spec(new_instance_with_list_parms)
-        spec.__call__().should_not_raise(InstructionException)
+        spec.__call__().should_not_raise(Exception)
         
     @lancelot.verifiable
     def stores_id_and_params(self):
@@ -110,12 +112,12 @@ class BaseInstructionBehaviour(object):
         The instruction id should be accessible through a method. '''
         class FakeInstruction(Instruction):
             ''' Fake Instruction to get fields from '''
-            def execute(self):
+            def execute(self, execution_context, results):
                 ''' Get the fields '''
                 return self._params
         spec = lancelot.Spec(FakeInstruction('an_id', ['param1', 'param2']))
         spec.instruction_id().should_be('an_id')
-        spec.execute().should_be(['param1', 'param2'])
+        spec.execute(object(), object()).should_be(['param1', 'param2'])
              
 @lancelot.verifiable
 def make_creates_instance():
@@ -134,7 +136,7 @@ def make_creates_instance():
         spec.execute(execution_context, results).should_collaborate_with(
             execution_context.get_type(params[1]).will_return(target),
             execution_context.store_instance(name, Type(target)),
-            results.ok(make_instruction)
+            results.completed_ok(make_instruction)
         )
 
 class MakeExceptionBehaviour(object):
@@ -152,7 +154,8 @@ class MakeExceptionBehaviour(object):
         spec = lancelot.Spec(make_instruction)
         spec.execute(execution_context, results).should_collaborate_with(
             execution_context.get_type('FakeClass').will_return(a_class),
-            results.raised(make_instruction, ExceptionValue(AttributeError))
+            results.raised(make_instruction, 
+                           ExceptionValue(NoSuchConstructorException))
         )
         
     @lancelot.verifiable
@@ -165,8 +168,9 @@ class MakeExceptionBehaviour(object):
         make_instruction = Make('wrong params', wrong_params)
         spec = lancelot.Spec(make_instruction)
         spec.execute(execution_context, results).should_collaborate_with(
-            execution_context.get_type('FakeClass').will_raise(TypeError),
-            results.raised(make_instruction, ExceptionValue(TypeError))
+            execution_context.get_type('FakeClass').will_raise(TypeError('x')),
+            results.raised(make_instruction, 
+                           ExceptionValue(NoSuchClassException))
         )
         
     @lancelot.verifiable
@@ -179,8 +183,10 @@ class MakeExceptionBehaviour(object):
         make_instruction = Make('wrong params', wrong_params)
         spec = lancelot.Spec(make_instruction)
         spec.execute(execution_context, results).should_collaborate_with(
-            execution_context.get_type('FakeClass').will_raise(ImportError),
-            results.raised(make_instruction, ExceptionValue(ImportError))
+            execution_context.get_type('FakeClass')
+                .will_raise(ImportError('y')),
+            results.raised(make_instruction, 
+                           ExceptionValue(NoSuchClassException))
         )
 
 lancelot.grouping(ExecutionContextBehaviour)

@@ -6,7 +6,7 @@ import lancelot
 from lancelot.comparators import Type
 from waferslim.protocol import pack, unpack, UnpackingError, instruction_for, \
                                Results, Instructions, RequestResponder
-from waferslim.execution import ExecutionContext, \
+from waferslim.execution import ExecutionContext, InstructionException, \
                                 Make, Import, Call, CallAndAssign 
 
 SAMPLE_DATA = [
@@ -141,8 +141,36 @@ def instructions_behaviour():
             mock_call.execute(ctx, results)
         )
 
+class ResultsBehaviour(object):
+    ''' Group of related specs for Results behaviour '''
+    
+    @lancelot.verifiable
+    def completed_ok(self):
+        ''' completed_ok() should add to results list. 
+        Results list should be accessible through collection() '''
+        instruction = lancelot.MockSpec(name='instruction')
+        spec = lancelot.Spec(Results())
+        spec.completed_ok(instruction).should_collaborate_with(
+            instruction.instruction_id().will_return('a')
+            )
+        spec.collection().should_be([['a', 'OK']])
+
+    @lancelot.verifiable
+    def raised(self):
+        ''' raised() should add a translated error message to results list. 
+        Results list should be accessible through collection() '''
+        translated_msg = '__EXCEPTION__: message:<<MALFORMED_INSTRUCTION bucket>>'
+        instruction = lancelot.MockSpec(name='instruction')
+        spec = lancelot.Spec(Results())
+        spec.raised(instruction, InstructionException('bucket'))
+        spec.should_collaborate_with(
+            instruction.instruction_id().will_return('b')
+            )
+        spec.collection().should_be([['b', translated_msg]])
+
 lancelot.grouping(PackBehaviour)
 lancelot.grouping(UnpackBehaviour)
+lancelot.grouping(ResultsBehaviour)
 
 if __name__ == '__main__':
     lancelot.verify()
