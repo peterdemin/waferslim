@@ -1,5 +1,5 @@
 '''
-Core protocol classes. 
+Core protocol classes for packing and unpacking messages sent from Slim Client.
 
 See http://fitnesse.org/FitNesse.SliM.SlimProtocol for more details.
     
@@ -9,10 +9,7 @@ Copyright 2009 by the author(s). All rights reserved
 '''
 
 from waferslim import WaferSlimException
-from waferslim.execution import ExecutionContext, InstructionException, \
-        NoSuchClassException, NoSuchConstructorException, \
-        NoSuchInstanceException, NoSuchMethodException, \
-        Make, Import, Call, CallAndAssign
+from waferslim.execution import Results, ExecutionContext, Instructions
 
 class UnpackingError(WaferSlimException):
     ''' An attempt was made to unpack messages that do not conform 
@@ -40,7 +37,7 @@ def unpack(packed_string):
         _unpack_chunk(packed_string, chunks)
         return chunks
     raise TypeError('%r is not a string' % packed_string)
-    
+        
 def _unpack_chunk(packed_chunk, chunks):
     ''' Unpack a packed chunk, recursively if required '''
     _check_chunk(packed_chunk)
@@ -64,11 +61,11 @@ def _unpack_chunk(packed_chunk, chunks):
             chunks.append(sub_chunk)
         else:
             chunks.append(item)
-    
+        
 def _check_chunk(packed_chunk):
     ''' Verify format of an packed_chunk '''
     _is_chunk(packed_chunk, raise_on_failure=True)
-    
+        
 def _is_chunk(possible_chunk, raise_on_failure=False):
     ''' Check for indicative start/end of an encoded chunk '''
     if possible_chunk.startswith(_START_CHUNK):
@@ -83,21 +80,21 @@ def _is_chunk(possible_chunk, raise_on_failure=False):
     else:
         return False
     raise UnpackingError(msg)
-    
+        
 def _check_separator(packed_chunk, pos):
     ''' Verify existence of separator at position pos in a packed_chunk '''
     if _SEPARATOR != packed_chunk[pos]:
         msg = '%r has no %r separator at pos %s' % \
                 (packed_chunk, _SEPARATOR, pos)
         raise UnpackingError(msg)
-    
+        
 def pack(item_list):
     ''' Pack each item from a list into the chunked-up format '''
     packed = [_pack_item(item) for item in item_list]
     packed.insert(0, _NUMERIC_ENCODING % len(item_list))
     return '%s%s%s%s' % (_START_CHUNK, _SEPARATOR.join(packed),
                          _SEPARATOR, _END_CHUNK)
-
+    
 def _pack_item(item): 
     ''' Pack (recursively if required) a single item in the format:  
     [iiiiii:llllll:item...]'''
@@ -106,83 +103,7 @@ def _pack_item(item):
     
     str_item = item and str(item) or 'null'
     return _ITEM_ENCODING % (len(str_item), _SEPARATOR, str_item)
-
-_INSTRUCTION_TYPES = {'make':Make,
-                      'import':Import,
-                      'call':Call,
-                      'callAndAssign':CallAndAssign }
-_ID_POSITION = 0
-_TYPE_POSITION = 1
-
-def instruction_for(params):
-    ''' Factory method for Instruction types '''
-    instruction_type = params.pop(_TYPE_POSITION)
-    instruction_id = params.pop(_ID_POSITION)
-    return _INSTRUCTION_TYPES[instruction_type](instruction_id, params)
-
-_OK = 'OK'
-_EXCEPTION = '__EXCEPTION__:'
-_EXCEPTIONS = {InstructionException:'MALFORMED_INSTRUCTION',
-               NoSuchClassException:'NO_CLASS',
-               NoSuchConstructorException:'COULD_NOT_INVOKE_CONSTRUCTOR',
-               NoSuchInstanceException: 'NO_INSTANCE',
-               NoSuchMethodException:'NO_METHOD_IN_CLASS'
-              }
-
-_NONE_STRING = '/__VOID__/'
-
-class Results(object):
-    ''' Collecting parameter for results of Instruction execute() methods '''
-    NO_RESULT = object()
-    
-    def __init__(self):
-        ''' Set up the list to hold the collected results '''
-        self._collected = []
-    
-    def completed(self, instruction, result=NO_RESULT):
-        ''' An instruction has completed, perhaps with a result '''
-        if result == Results.NO_RESULT:
-            str_result = _OK
-        elif result:
-            str_result = str(result)
-        else:
-            str_result = _NONE_STRING
-        self._collected.append([instruction.instruction_id(), str_result])
-          
-    def raised(self, instruction, exception):
-        ''' An instruction has raised an exception. The nature of the
-        exception will be translated into the relevant Slim protocol format.'''
-        self._collected.append([instruction.instruction_id(), 
-                                self._translate(exception)])
-    
-    def _translate(self, exception):
-        ''' Translate an exception type into a formatted message '''
-        return '%s message:<<%s %s>>' % (_EXCEPTION, 
-                                         _EXCEPTIONS[type(exception)], 
-                                         exception.args[0])
-    
-    def collection(self):
-        ''' Get the collected list of results - modifications to the list 
-        will not be reflected in this collection '''
-        collected = []
-        collected.extend(self._collected)
-        return collected
-
-class Instructions(object):
-    ''' Container for executable sequence of Instruction-s '''
-    
-    def __init__(self, unpacked_list, factory_method=instruction_for):
-        ''' Provide an unpacked list of strings that will be converted 
-        into a sequence of Instruction-s to execute '''
-        self._unpacked_list = unpacked_list
-        self._instruction_for = factory_method
-    
-    def execute(self, execution_context, results):
-        ''' Create and execute Instruction-s, collecting the results '''
-        for item in self._unpacked_list:
-            instruction = self._instruction_for(item)
-            instruction.execute(execution_context, results)
-                
+            
 class RequestResponder(object):
     ''' Mixin class for responding to Slim requests.
     Logic mostly reverse engineered from Java test classes especially 

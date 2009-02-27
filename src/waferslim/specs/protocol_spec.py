@@ -4,10 +4,9 @@ BDD-style Lancelot specifications for the behaviour of the core library classes
 
 import lancelot
 from lancelot.comparators import Type
-from waferslim.protocol import pack, unpack, UnpackingError, instruction_for, \
-                               Results, Instructions, RequestResponder
-from waferslim.execution import ExecutionContext, InstructionException, \
-                                Make, Import, Call, CallAndAssign 
+from waferslim.protocol import pack, unpack, UnpackingError, RequestResponder
+from waferslim.execution import ExecutionContext, Results, Instructions, \
+                                instruction_for
 
 SAMPLE_DATA = [
                ([],                 '[000000:]'),
@@ -39,6 +38,8 @@ class PackBehaviour(object):
         spec.pack([1]).should_be('[000001:000001:1:]')
         spec.pack([None]).should_be('[000001:000004:null:]') #TODO: check this?!
 
+lancelot.grouping(PackBehaviour)
+
 class UnpackBehaviour(object):
     ''' Group of specs for unpack() behaviour '''
     
@@ -69,6 +70,8 @@ class UnpackBehaviour(object):
         for unpacked, packed in SAMPLE_DATA:
             spec.unpack(packed).should_be(unpacked)
 
+lancelot.grouping(UnpackBehaviour)
+
 @lancelot.verifiable
 def request_responder_behaviour():
     ''' RequestResponder should send an ACK then recv a message 
@@ -84,7 +87,7 @@ def request_responder_behaviour():
         request.send('Slim -- V0.0\n'.encode('utf-8')).will_return(2),
         request.recv(7).will_return('000009:'.encode('utf-8')),
         request.recv(9).will_return('[000000:]'.encode('utf-8')),
-        instructions.execute(Type(ExecutionContext), Type(Results())),
+        instructions.execute(Type(ExecutionContext), Type(Results)),
         request.send('000009:[000000:]'.encode('utf-8')).will_return(4),
         request.recv(7).will_return('000003:'.encode('utf-8')),
         request.recv(3).will_return('bye'.encode('utf-8')),
@@ -100,105 +103,15 @@ def request_responder_behaviour():
         request.send('Slim -- V0.0\n'.encode('utf-8')).will_return(2),
         request.recv(7).will_return('000009:'.encode('utf-8')),
         request.recv(9).will_return('[000000:]'.encode('utf-8')),
-        instructions.execute(Type(ExecutionContext), Type(Results())),
+        instructions.execute(Type(ExecutionContext), Type(Results)),
         request.send('000009:[000000:]'.encode('utf-8')).will_return(4),
         request.recv(7).will_return('000009:'.encode('utf-8')),
         request.recv(9).will_return('[000000:]'.encode('utf-8')),
-        instructions.execute(Type(ExecutionContext), Type(Results())),
+        instructions.execute(Type(ExecutionContext), Type(Results)),
         request.send('000009:[000000:]'.encode('utf-8')).will_return(8),
         request.recv(7).will_return('000003:'.encode('utf-8')),
         request.recv(3).will_return('bye'.encode('utf-8')),
         and_result=(7+9+7+9+7+3, 2+4+8))
-    
-@lancelot.verifiable
-def instruction_for_behaviour():
-    ''' instruction_for should return instantiate the correct type of 
-    instruction, based on the name given in the list passed to it ''' 
-    spec = lancelot.Spec(instruction_for)
-    known_instructions = {'make':Type(Make),
-                          'import':Type(Import),
-                          'call':Type(Call),
-                          'callAndAssign':Type(CallAndAssign)}
-    for name, instruction in known_instructions.items():
-        spec.instruction_for(['id', name, []]).should_be(instruction)
-
-@lancelot.verifiable
-def instructions_behaviour():
-    ''' Instructions should collaborate with instruction_for to instantiate
-    a list of instructions, which execute() loops through '''
-    mock_fn = lancelot.MockSpec(name='mock_fn')
-    mock_make = lancelot.MockSpec(name='mock_make')
-    mock_call = lancelot.MockSpec(name='mock_call')
-    a_list = [
-              ['id_0', 'make', 'instance', 'fixture', 'argument'],
-              ['id_1', 'call', 'instance', 'f', '3']
-             ]
-    instructions = Instructions(a_list, 
-                                lambda item: mock_fn.instruction_for(item))
-    spec = lancelot.Spec(instructions)
-    ctx = ExecutionContext()
-    results = Results() 
-    spec.execute(ctx, results).should_collaborate_with(
-            mock_fn.instruction_for(a_list[0]).will_return(mock_make),
-            mock_make.execute(ctx, results),
-            mock_fn.instruction_for(a_list[1]).will_return(mock_call),
-            mock_call.execute(ctx, results)
-        )
-
-class ResultsBehaviour(object):
-    ''' Group of related specs for Results behaviour '''
-    
-    @lancelot.verifiable
-    def completed_ok(self):
-        ''' completed_ok() should add to results list. 
-        Results list should be accessible through collection() '''
-        instruction = lancelot.MockSpec(name='instruction')
-        spec = lancelot.Spec(Results())
-        spec.completed(instruction).should_collaborate_with(
-            instruction.instruction_id().will_return('a')
-            )
-        spec.collection().should_be([['a', 'OK']])
-
-    @lancelot.verifiable
-    def raised(self):
-        ''' raised() should add a translated error message to results list. 
-        Results list should be accessible through collection() '''
-        translated_msg = '__EXCEPTION__: ' \
-            + 'message:<<MALFORMED_INSTRUCTION bucket>>'
-        instruction = lancelot.MockSpec(name='instruction')
-        spec = lancelot.Spec(Results())
-        spec.raised(instruction, InstructionException('bucket'))
-        spec.should_collaborate_with(
-            instruction.instruction_id().will_return('b')
-            )
-        spec.collection().should_be([['b', translated_msg]])
-        
-    @lancelot.verifiable
-    def completed_with_result(self):
-        ''' completed() should add to results list. 
-        Results list should be accessible through collection() '''
-        instruction = lancelot.MockSpec(name='instruction')
-        result = lancelot.MockSpec(name='result')
-        spec = lancelot.Spec(Results())
-        spec.completed(instruction, result=result).should_collaborate_with(
-            instruction.instruction_id().will_return('b')
-            )
-        spec.collection().should_be([['b', str(result)]])
-        
-    @lancelot.verifiable
-    def completed_with_None(self):
-        ''' completed() should add to results list. 
-        Results list should be accessible through collection() '''
-        instruction = lancelot.MockSpec(name='instruction')
-        spec = lancelot.Spec(Results())
-        spec.completed(instruction, result=None).should_collaborate_with(
-            instruction.instruction_id().will_return('c')
-            )
-        spec.collection().should_be([['c', '/__VOID__/']])
-
-lancelot.grouping(PackBehaviour)
-lancelot.grouping(UnpackBehaviour)
-lancelot.grouping(ResultsBehaviour)
 
 if __name__ == '__main__':
     lancelot.verify()

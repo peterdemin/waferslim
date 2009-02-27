@@ -3,12 +3,10 @@ BDD-style Lancelot specifications for the behaviour of the core library classes
 '''
 
 import lancelot, sys, types
-from lancelot.comparators import Type, SameAs, ExceptionValue
-from waferslim.execution import Instruction, ExecutionContext, \
-                                InstructionException, NoSuchClassException, \
-                                NoSuchConstructorException, \
-                                NoSuchInstanceException, \
-                                NoSuchMethodException, \
+from lancelot.comparators import Type, SameAs
+from waferslim.execution import ExecutionContext, Results, Instructions, \
+                                instruction_for
+from waferslim.instructions import InstructionException, \
                                 Make, Import, Call, CallAndAssign
 from waferslim.specs.spec_classes import ClassWithNoArgs, ClassWithOneArg, \
                                          ClassWithTwoArgs
@@ -92,166 +90,96 @@ class ExecutionContextBehaviour(object):
 
         spec = lancelot.Spec(ExecutionContext())
         spec.get_instance('wafer thin').should_raise(KeyError)
-        
-class BaseInstructionBehaviour(object):
-    ''' Related Specs for base Instruction behaviour '''
-    
-    @lancelot.verifiable
-    def params_must_be_list(self):
-        ''' The params constructor arg must be a list '''
-        new_instance_with_bad_parms = lambda: Instruction('id', 'params')
-        spec = lancelot.Spec(new_instance_with_bad_parms)
-        spec.__call__().should_raise(TypeError)
-
-        new_instance_with_list_parms = lambda: Instruction('id', ['params'])
-        spec = lancelot.Spec(new_instance_with_list_parms)
-        spec.__call__().should_not_raise(Exception)
-        
-    @lancelot.verifiable
-    def stores_id_and_params(self):
-        ''' The id and params constructor args should be assigned to fields.
-        The instruction id should be accessible through a method. '''
-        class FakeInstruction(Instruction):
-            ''' Fake Instruction to get fields from '''
-            def execute(self, execution_context, results):
-                ''' Get the fields '''
-                return self._params
-        spec = lancelot.Spec(FakeInstruction('an_id', ['param1', 'param2']))
-        spec.instruction_id().should_be('an_id')
-        spec.execute(object(), object()).should_be(['param1', 'param2'])
-             
-@lancelot.verifiable
-def make_creates_instance():
-    ''' Make.execute() should instantiate the class & add it to context '''
-    package = 'waferslim.specs.spec_classes'
-    classes = {ClassWithNoArgs:[],
-               ClassWithOneArg:[1],
-               ClassWithTwoArgs:['a', 'b']}
-    for target in classes.keys():
-        name = target.__name__
-        execution_context = lancelot.MockSpec(name='execution_context')
-        results = lancelot.MockSpec(name='results')
-        params = [name, '%s.%s' % (package, name), classes[target]]
-        make_instruction = Make(name, params)
-        spec = lancelot.Spec(make_instruction)
-        spec.execute(execution_context, results).should_collaborate_with(
-            execution_context.get_type(params[1]).will_return(target),
-            execution_context.store_instance(name, Type(target)),
-            results.completed_ok(make_instruction)
-        )
-
-class MakeExceptionBehaviour(object):
-    ''' Exception-related Specs for Make-instruction behaviour '''
-
-    @lancelot.verifiable
-    def handles_wrong_args(self):
-        ''' NoSuchConstructorException indicates incorrect constructor args '''
-        wrong_params = ['creosote', 'FakeClass',
-                        ['some unwanted', 'constructor args']
-                       ]
-        execution_context = lancelot.MockSpec(name='execution_context')
-        results = lancelot.MockSpec(name='results')
-        a_class = ClassWithNoArgs
-        make_instruction = Make('wrong params', wrong_params)
-        spec = lancelot.Spec(make_instruction)
-        spec.execute(execution_context, results).should_collaborate_with(
-            execution_context.get_type('FakeClass').will_return(a_class),
-            results.raised(make_instruction, 
-                           ExceptionValue(NoSuchConstructorException))
-        )
-
-    @lancelot.verifiable
-    def handles_bad_type(self):
-        ''' NoSuchClassException indicates unknown type '''
-        wrong_params = ['creosote', 'FakeClass',
-                        ['some unwanted', 'constructor args']
-                       ]
-        execution_context = lancelot.MockSpec(name='execution_context')
-        results = lancelot.MockSpec(name='results')
-        make_instruction = Make('wrong params', wrong_params)
-        spec = lancelot.Spec(make_instruction)
-        spec.execute(execution_context, results).should_collaborate_with(
-            execution_context.get_type('FakeClass').will_raise(TypeError('x')),
-            results.raised(make_instruction, 
-                           ExceptionValue(NoSuchClassException))
-        )
-
-    @lancelot.verifiable
-    def handles_bad_import(self):
-        ''' NoSuchClassException also indicates import problem '''
-        wrong_params = ['creosote', 'FakeClass',
-                        ['some unwanted', 'constructor args']
-                       ]
-        execution_context = lancelot.MockSpec(name='execution_context')
-        results = lancelot.MockSpec(name='results')
-        make_instruction = Make('wrong params', wrong_params)
-        spec = lancelot.Spec(make_instruction)
-        spec.execute(execution_context, results).should_collaborate_with(
-            execution_context.get_type('FakeClass')
-                .will_raise(ImportError('y')),
-            results.raised(make_instruction, 
-                           ExceptionValue(NoSuchClassException))
-        )          
-
-@lancelot.verifiable
-def call_invokes_method():
-    ''' Call instruction should get an instance from context and execute a
-    callable method on it, returning the results '''
-    methods = {'method_0':[],
-               'method_1':[1],
-               'method_2':['a', 'b']}
-    for target in methods.keys():
-        instance = lancelot.MockSpec(name='instance')
-        result = ','.join([str(arg) for arg in methods[target]])
-        execution_context = lancelot.MockSpec(name='execution_context')
-        results = lancelot.MockSpec(name='results')
-        params = ['instance', 'method', methods[target]]
-        call_instruction = Call('id_90', params)
-        spec = lancelot.Spec(call_instruction)
-        spec.execute(execution_context, results).should_collaborate_with(
-            execution_context.get_instance(params[0]).will_return(instance),
-            instance.method(*tuple(params[2])).will_return(result),
-            results.completed(call_instruction, result)
-            )
-
-class CallExceptionBehaviour(object):
-    ''' Exception-related Specs for Call-instruction behaviour '''
-
-    @lancelot.verifiable
-    def handles_bad_instance(self):
-        ''' NoSuchInstanceException indicates bad instance name in Call ''' 
-        execution_context = lancelot.MockSpec(name='execution_context')
-        results = lancelot.MockSpec(name='results')
-        params = ['bad_instance', 'method', 'args']
-        call_instruction = Call('id_9A', params)
-        spec = lancelot.Spec(call_instruction)
-        spec.execute(execution_context, results).should_collaborate_with(
-            execution_context.get_instance(params[0]).will_raise(KeyError),
-            results.raised(call_instruction, 
-                           NoSuchInstanceException(params[0]))
-            )
-
-    @lancelot.verifiable
-    def handles_bad_method(self):
-        ''' NoSuchMethodException indicates bad method name for Call target ''' 
-        execution_context = lancelot.MockSpec(name='execution_context')
-        results = lancelot.MockSpec(name='results')
-        params = ['instance', 'bad_method', 'args']
-        instance = ClassWithNoArgs()
-        msg = '%s %s' % (params[1], type(instance))
-        
-        call_instruction = Call('id_9B', params)
-        spec = lancelot.Spec(call_instruction)
-        
-        spec.execute(execution_context, results).should_collaborate_with(
-            execution_context.get_instance(params[0]).will_return(instance),
-            results.raised(call_instruction, NoSuchMethodException(msg))
-            )
 
 lancelot.grouping(ExecutionContextBehaviour)
-lancelot.grouping(BaseInstructionBehaviour)
-lancelot.grouping(MakeExceptionBehaviour)
-lancelot.grouping(CallExceptionBehaviour)
+
+@lancelot.verifiable
+def instruction_for_behaviour():
+    ''' instruction_for should return instantiate the correct type of 
+    instruction, based on the name given in the list passed to it ''' 
+    spec = lancelot.Spec(instruction_for)
+    known_instructions = {'make':Type(Make),
+                          'import':Type(Import),
+                          'call':Type(Call),
+                          'callAndAssign':Type(CallAndAssign)}
+    for name, instruction in known_instructions.items():
+        spec.instruction_for(['id', name, []]).should_be(instruction)
+
+@lancelot.verifiable
+def instructions_behaviour():
+    ''' Instructions should collaborate with instruction_for to instantiate
+    a list of instructions, which execute() loops through '''
+    mock_fn = lancelot.MockSpec(name='mock_fn')
+    mock_make = lancelot.MockSpec(name='mock_make')
+    mock_call = lancelot.MockSpec(name='mock_call')
+    a_list = [
+              ['id_0', 'make', 'instance', 'fixture', 'argument'],
+              ['id_1', 'call', 'instance', 'f', '3']
+             ]
+    instructions = Instructions(a_list, 
+                                lambda item: mock_fn.instruction_for(item))
+    spec = lancelot.Spec(instructions)
+    ctx = ExecutionContext()
+    results = Results() 
+    spec.execute(ctx, results).should_collaborate_with(
+            mock_fn.instruction_for(a_list[0]).will_return(mock_make),
+            mock_make.execute(ctx, results),
+            mock_fn.instruction_for(a_list[1]).will_return(mock_call),
+            mock_call.execute(ctx, results)
+        )
+
+class ResultsBehaviour(object):
+    ''' Group of related specs for Results behaviour '''
+    
+    @lancelot.verifiable
+    def completed_ok(self):
+        ''' completed_ok() should add to results list. 
+        Results list should be accessible through collection() '''
+        instruction = lancelot.MockSpec(name='instruction')
+        spec = lancelot.Spec(Results())
+        spec.completed(instruction).should_collaborate_with(
+            instruction.instruction_id().will_return('a')
+            )
+        spec.collection().should_be([['a', 'OK']])
+
+    @lancelot.verifiable
+    def raised(self):
+        ''' raised() should add a translated error message to results list. 
+        Results list should be accessible through collection() '''
+        translated_msg = '__EXCEPTION__: ' \
+            + 'message:<<MALFORMED_INSTRUCTION bucket>>'
+        instruction = lancelot.MockSpec(name='instruction')
+        spec = lancelot.Spec(Results())
+        spec.raised(instruction, InstructionException('bucket'))
+        spec.should_collaborate_with(
+            instruction.instruction_id().will_return('b')
+            )
+        spec.collection().should_be([['b', translated_msg]])
+        
+    @lancelot.verifiable
+    def completed_with_result(self):
+        ''' completed() should add to results list. 
+        Results list should be accessible through collection() '''
+        instruction = lancelot.MockSpec(name='instruction')
+        result = lancelot.MockSpec(name='result')
+        spec = lancelot.Spec(Results())
+        spec.completed(instruction, result=result).should_collaborate_with(
+            instruction.instruction_id().will_return('b')
+            )
+        spec.collection().should_be([['b', str(result)]])
+        
+    @lancelot.verifiable
+    def completed_without_return_value(self):
+        ''' completed() should add to results list. 
+        Results list should be accessible through collection() '''
+        instruction = lancelot.MockSpec(name='instruction')
+        spec = lancelot.Spec(Results())
+        spec.completed(instruction, result=None).should_collaborate_with(
+            instruction.instruction_id().will_return('c')
+            )
+        spec.collection().should_be([['c', '/__VOID__/']])
+
+lancelot.grouping(ResultsBehaviour)
 
 if __name__ == '__main__':
     lancelot.verify()

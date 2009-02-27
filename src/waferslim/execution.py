@@ -8,27 +8,87 @@ Copyright 2009 by the author(s). All rights reserved
 '''
 import sys
 from waferslim import WaferSlimException
+from waferslim.instructions import InstructionException, \
+        NoSuchClassException, NoSuchConstructorException, \
+        NoSuchInstanceException, NoSuchMethodException, \
+        Make, Call, CallAndAssign, Import
 
-class InstructionException(WaferSlimException):
-    ''' Indicate an Instruction-related error ''' 
-    pass
- 
-class NoSuchClassException(InstructionException):
-    ''' Indicate an Make Instruction-related error ''' 
-    pass
+_OK = 'OK'
+_EXCEPTION = '__EXCEPTION__:'
+_EXCEPTIONS = {InstructionException:'MALFORMED_INSTRUCTION',
+               NoSuchClassException:'NO_CLASS',
+               NoSuchConstructorException:'COULD_NOT_INVOKE_CONSTRUCTOR',
+               NoSuchInstanceException: 'NO_INSTANCE',
+               NoSuchMethodException:'NO_METHOD_IN_CLASS'
+               }
 
-class NoSuchConstructorException(InstructionException):
-    ''' Indicate an Make Instruction-related error ''' 
-    pass
+_NONE_STRING = '/__VOID__/'
 
-class NoSuchInstanceException(InstructionException):
-    ''' Indicate a Call or CallAndAssign Instruction-related error ''' 
-    pass
+class Results(object):
+    ''' Collecting parameter for results of Instruction execute() methods '''
+    NO_RESULT = object()
+    
+    def __init__(self):
+        ''' Set up the list to hold the collected results '''
+        self._collected = []
+    
+    def completed(self, instruction, result=NO_RESULT):
+        ''' An instruction has completed, perhaps with a result '''
+        if result == Results.NO_RESULT:
+            str_result = _OK
+        elif result:
+            str_result = str(result)
+        else:
+            str_result = _NONE_STRING
+        self._collected.append([instruction.instruction_id(), str_result])
+        
+    def raised(self, instruction, exception):
+        ''' An instruction has raised an exception. The nature of the
+        exception will be translated into the relevant Slim protocol format.'''
+        self._collected.append([instruction.instruction_id(), 
+                                self._translate(exception)])
+    
+    def _translate(self, exception):
+        ''' Translate an exception type into a formatted message '''
+        return '%s message:<<%s %s>>' % (_EXCEPTION, 
+                                         _EXCEPTIONS[type(exception)], 
+                                         exception.args[0])
+    
+    def collection(self):
+        ''' Get the collected list of results - modifications to the list 
+        will not be reflected in this collection '''
+        collected = []
+        collected.extend(self._collected)
+        return collected
 
-class NoSuchMethodException(InstructionException):
-    ''' Indicate a Call or CallAndAssign Instruction-related error ''' 
-    pass
+_INSTRUCTION_TYPES = {'make':Make,
+                      'import':Import,
+                      'call':Call,
+                      'callAndAssign':CallAndAssign }
+_ID_POSITION = 0
+_TYPE_POSITION = 1
 
+def instruction_for(params):
+    ''' Factory method for Instruction types '''
+    instruction_type = params.pop(_TYPE_POSITION)
+    instruction_id = params.pop(_ID_POSITION)
+    return _INSTRUCTION_TYPES[instruction_type](instruction_id, params)
+
+class Instructions(object):
+    ''' Container for executable sequence of Instruction-s '''
+    
+    def __init__(self, unpacked_list, factory_method=instruction_for):
+        ''' Provide an unpacked list of strings that will be converted 
+        into a sequence of Instruction-s to execute '''
+        self._unpacked_list = unpacked_list
+        self._instruction_for = factory_method
+    
+    def execute(self, execution_context, results):
+        ''' Create and execute Instruction-s, collecting the results '''
+        for item in self._unpacked_list:
+            instruction = self._instruction_for(item)
+            instruction.execute(execution_context, results)
+     
 class ExecutionContext(object):
     ''' Contextual execution environment to allow simultaneous code executions
     to take place without interfering with each other.
@@ -55,7 +115,7 @@ class ExecutionContext(object):
         try:
             _type = getattr(module, type_part)
             return _type
-        except AttributeError, e:
+        except AttributeError:
             msg = '%s could not be found in %s' % (type_part, module_part)
             raise TypeError(msg)
 
@@ -80,73 +140,3 @@ class ExecutionContext(object):
     def get_instance(self, name):
         ''' Get value from a name=value pair in the context locals '''
         return self._instances[name]
-     
-class Instruction(object):
-    ''' Base class for instructions '''
-    
-    def __init__(self, instruction_id, params):
-        ''' Specify the id of this instruction, and its params.
-        Params must be a list. '''
-        if not isinstance(params, list):
-            raise TypeError('%r is not a list' % params)
-        self._id = instruction_id
-        self._params = params
-        
-    def instruction_id(self):
-        ''' Return the id of this instruction '''
-        return self._id
-        
-    def execute(self, execution_context, results):
-        ''' Execute within the context and add to the results '''
-#        raise InstructionException('Can only execute() a sub-class')
-        pass
-
-class Import(Instruction):
-    ''' An "import <path>" instruction '''
-    pass
-
-class Make(Instruction):
-    ''' A "make <instance>, <class>, <args>..." instruction '''
-    
-    def execute(self, execution_context, results):
-        ''' Create a class instance and add it to the execution context ''' 
-        try:
-            target = execution_context.get_type(self._params[1])
-        except (TypeError, ImportError), error:
-            msg = '%s %s' % (self._params[1], error.args[0])
-            results.raised(self, NoSuchClassException(msg))
-            return
-            
-        args = tuple(self._params[2])
-        try:
-            instance = target(*args)
-            execution_context.store_instance(self._params[0], instance)
-            results.completed_ok(self)
-        except TypeError, error:
-            msg = '%s %s' % (self._params[1], error.args[0])
-            results.raised(self, NoSuchConstructorException(msg))
-
-class Call(Instruction):
-    ''' A "call <instance>, <function>, <args>..." instruction '''
-    
-    def execute(self, execution_context, results):
-        ''' Get an instance from the execution context and invoke a method'''
-        try:
-            instance = execution_context.get_instance(self._params[0])
-        except KeyError:
-            results.raised(self, NoSuchInstanceException(self._params[0]))
-            return
-        try:
-            target = getattr(instance, self._params[1])
-        except AttributeError:
-            msg = '%s %s' % (self._params[1], type(instance))
-            results.raised(self, NoSuchMethodException(msg))
-            return
-        args = tuple(self._params[2])
-        result = target(*args)
-        results.completed(self, result)
-
-class CallAndAssign(Instruction):
-    ''' A "callAndAssign <symbol>, <instance>, <function>, <args>..." 
-    instruction '''
-    pass
