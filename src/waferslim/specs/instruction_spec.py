@@ -2,14 +2,10 @@
 BDD-style Lancelot specifications for the behaviour of the core library classes
 '''
 
-import lancelot, sys, types
+import lancelot
 from lancelot.comparators import Type, ExceptionValue
 from waferslim.instructions import Instruction, \
-                                InstructionException, NoSuchClassException, \
-                                NoSuchConstructorException, \
-                                NoSuchInstanceException, \
-                                NoSuchMethodException, \
-                                Make, Import, Call, CallAndAssign
+                                   Make, Import, Call, CallAndAssign
 from waferslim.specs.spec_classes import ClassWithNoArgs, ClassWithOneArg, \
                                          ClassWithTwoArgs
 
@@ -59,7 +55,7 @@ def make_creates_instance():
         spec.execute(execution_context, results).should_collaborate_with(
             execution_context.get_type(params[1]).will_return(target),
             execution_context.store_instance(name, Type(target)),
-            results.completed_ok(make_instruction)
+            results.completed(make_instruction)
         )
 
 class MakeExceptionBehaviour(object):
@@ -71,6 +67,8 @@ class MakeExceptionBehaviour(object):
         wrong_params = ['creosote', 'FakeClass',
                         ['some unwanted', 'constructor args']
                        ]
+        cause = 'COULD_NOT_INVOKE_CONSTRUCTOR FakeClass ' \
+                + 'default __new__ takes no parameters'
         execution_context = lancelot.MockSpec(name='execution_context')
         results = lancelot.MockSpec(name='results')
         a_class = ClassWithNoArgs
@@ -78,8 +76,7 @@ class MakeExceptionBehaviour(object):
         spec = lancelot.Spec(make_instruction)
         spec.execute(execution_context, results).should_collaborate_with(
             execution_context.get_type('FakeClass').will_return(a_class),
-            results.raised(make_instruction, 
-                           ExceptionValue(NoSuchConstructorException))
+            results.failed(make_instruction, cause)
         )
 
     @lancelot.verifiable
@@ -88,14 +85,15 @@ class MakeExceptionBehaviour(object):
         wrong_params = ['creosote', 'FakeClass',
                         ['some unwanted', 'constructor args']
                        ]
+        type_error = TypeError('x')
+        cause = 'NO_CLASS FakeClass x'
         execution_context = lancelot.MockSpec(name='execution_context')
         results = lancelot.MockSpec(name='results')
         make_instruction = Make('wrong params', wrong_params)
         spec = lancelot.Spec(make_instruction)
         spec.execute(execution_context, results).should_collaborate_with(
-            execution_context.get_type('FakeClass').will_raise(TypeError('x')),
-            results.raised(make_instruction, 
-                           ExceptionValue(NoSuchClassException))
+            execution_context.get_type('FakeClass').will_raise(type_error),
+            results.failed(make_instruction, cause)
         )
 
     @lancelot.verifiable
@@ -104,15 +102,15 @@ class MakeExceptionBehaviour(object):
         wrong_params = ['creosote', 'FakeClass',
                         ['some unwanted', 'constructor args']
                        ]
+        import_error = ImportError('y')
+        cause = 'NO_CLASS FakeClass y'
         execution_context = lancelot.MockSpec(name='execution_context')
         results = lancelot.MockSpec(name='results')
         make_instruction = Make('wrong params', wrong_params)
         spec = lancelot.Spec(make_instruction)
         spec.execute(execution_context, results).should_collaborate_with(
-            execution_context.get_type('FakeClass')
-                .will_raise(ImportError('y')),
-            results.raised(make_instruction, 
-                           ExceptionValue(NoSuchClassException))
+            execution_context.get_type('FakeClass').will_raise(import_error),
+            results.failed(make_instruction, cause)
         )
 
 lancelot.grouping(MakeExceptionBehaviour)
@@ -147,12 +145,12 @@ class CallExceptionBehaviour(object):
         execution_context = lancelot.MockSpec(name='execution_context')
         results = lancelot.MockSpec(name='results')
         params = ['bad_instance', 'method', 'args']
+        cause = 'NO_INSTANCE bad_instance'
         call_instruction = Call('id_9A', params)
         spec = lancelot.Spec(call_instruction)
         spec.execute(execution_context, results).should_collaborate_with(
             execution_context.get_instance(params[0]).will_raise(KeyError),
-            results.raised(call_instruction, 
-                           NoSuchInstanceException(params[0]))
+            results.failed(call_instruction, cause)
             )
 
     @lancelot.verifiable
@@ -162,14 +160,14 @@ class CallExceptionBehaviour(object):
         results = lancelot.MockSpec(name='results')
         params = ['instance', 'bad_method', 'args']
         instance = ClassWithNoArgs()
-        msg = '%s %s' % (params[1], type(instance))
+        cause = 'NO_METHOD_IN_CLASS bad_method ClassWithNoArgs'
         
         call_instruction = Call('id_9B', params)
         spec = lancelot.Spec(call_instruction)
         
         spec.execute(execution_context, results).should_collaborate_with(
             execution_context.get_instance(params[0]).will_return(instance),
-            results.raised(call_instruction, NoSuchMethodException(msg))
+            results.failed(call_instruction, cause)
             )
 
 lancelot.grouping(CallExceptionBehaviour)

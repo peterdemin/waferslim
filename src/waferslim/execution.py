@@ -8,33 +8,24 @@ Copyright 2009 by the author(s). All rights reserved
 '''
 import sys
 from waferslim import WaferSlimException
-from waferslim.instructions import InstructionException, \
-        NoSuchClassException, NoSuchConstructorException, \
-        NoSuchInstanceException, NoSuchMethodException, \
-        Make, Call, CallAndAssign, Import
+from waferslim.instructions import Make, Call, CallAndAssign, Import
 
 _OK = 'OK'
 _EXCEPTION = '__EXCEPTION__:'
-_EXCEPTIONS = {InstructionException:'MALFORMED_INSTRUCTION',
-               NoSuchClassException:'NO_CLASS',
-               NoSuchConstructorException:'COULD_NOT_INVOKE_CONSTRUCTOR',
-               NoSuchInstanceException: 'NO_INSTANCE',
-               NoSuchMethodException:'NO_METHOD_IN_CLASS'
-               }
 
 _NONE_STRING = '/__VOID__/'
 
 class Results(object):
     ''' Collecting parameter for results of Instruction execute() methods '''
-    NO_RESULT = object()
+    NO_RESULT_EXPECTED = object()
     
     def __init__(self):
         ''' Set up the list to hold the collected results '''
         self._collected = []
     
-    def completed(self, instruction, result=NO_RESULT):
+    def completed(self, instruction, result=NO_RESULT_EXPECTED):
         ''' An instruction has completed, perhaps with a result '''
-        if result == Results.NO_RESULT:
+        if result == Results.NO_RESULT_EXPECTED:
             str_result = _OK
         elif result:
             str_result = str(result)
@@ -42,17 +33,14 @@ class Results(object):
             str_result = _NONE_STRING
         self._collected.append([instruction.instruction_id(), str_result])
         
-    def raised(self, instruction, exception):
-        ''' An instruction has raised an exception. The nature of the
-        exception will be translated into the relevant Slim protocol format.'''
+    def failed(self, instruction, cause):
+        ''' An instruction has failed due to some underlying cause '''
         self._collected.append([instruction.instruction_id(), 
-                                self._translate(exception)])
+                                self._format(cause)])
     
-    def _translate(self, exception):
-        ''' Translate an exception type into a formatted message '''
-        return '%s message:<<%s %s>>' % (_EXCEPTION, 
-                                         _EXCEPTIONS[type(exception)], 
-                                         exception.args[0])
+    def _format(self, cause):
+        ''' Return a failure cause in protocol exception format '''
+        return '%s message:<<%s>>' % (_EXCEPTION, cause)
     
     def collection(self):
         ''' Get the collected list of results - modifications to the list 

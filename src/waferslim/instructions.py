@@ -6,28 +6,12 @@ The latest source code is available at http://code.launchpad.net/waferslim.
 
 Copyright 2009 by the author(s). All rights reserved 
 '''
-import sys
 from waferslim import WaferSlimException
 
-class InstructionException(WaferSlimException):
-    ''' Indicate an Instruction-related error ''' 
-    pass
-
-class NoSuchClassException(InstructionException):
-    ''' Indicate an Make Instruction-related error ''' 
-    pass
-
-class NoSuchConstructorException(InstructionException):
-    ''' Indicate an Make Instruction-related error ''' 
-    pass
-
-class NoSuchInstanceException(InstructionException):
-    ''' Indicate a Call or CallAndAssign Instruction-related error ''' 
-    pass
-
-class NoSuchMethodException(InstructionException):
-    ''' Indicate a Call or CallAndAssign Instruction-related error ''' 
-    pass
+_NO_CLASS = 'NO_CLASS'
+_NO_CONSTRUCTION = 'COULD_NOT_INVOKE_CONSTRUCTOR'
+_NO_INSTANCE = 'NO_INSTANCE'
+_NO_METHOD = 'NO_METHOD_IN_CLASS'
 
 class Instruction(object):
     ''' Base class for instructions '''
@@ -46,7 +30,6 @@ class Instruction(object):
         
     def execute(self, execution_context, results):
         ''' Execute within the context and add to the results '''
-#        raise InstructionException('Can only execute() a sub-class')
         pass
 
 class Import(Instruction):
@@ -61,18 +44,19 @@ class Make(Instruction):
         try:
             target = execution_context.get_type(self._params[1])
         except (TypeError, ImportError), error:
-            msg = '%s %s' % (self._params[1], error.args[0])
-            results.raised(self, NoSuchClassException(msg))
+            cause = '%s %s %s' % (_NO_CLASS, self._params[1], error.args[0])
+            results.failed(self, cause)
             return
             
         args = tuple(self._params[2])
         try:
             instance = target(*args)
             execution_context.store_instance(self._params[0], instance)
-            results.completed_ok(self)
+            results.completed(self)
         except TypeError, error:
-            msg = '%s %s' % (self._params[1], error.args[0])
-            results.raised(self, NoSuchConstructorException(msg))
+            cause = '%s %s %s' % (_NO_CONSTRUCTION, 
+                                  self._params[1], error.args[0])
+            results.failed(self, cause)
 
 class Call(Instruction):
     ''' A "call <instance>, <function>, <args>..." instruction '''
@@ -82,13 +66,14 @@ class Call(Instruction):
         try:
             instance = execution_context.get_instance(self._params[0])
         except KeyError:
-            results.raised(self, NoSuchInstanceException(self._params[0]))
+            results.failed(self, '%s %s' % (_NO_INSTANCE, self._params[0]))
             return
         try:
             target = getattr(instance, self._params[1])
         except AttributeError:
-            msg = '%s %s' % (self._params[1], type(instance))
-            results.raised(self, NoSuchMethodException(msg))
+            cause = '%s %s %s' % (_NO_METHOD, self._params[1], 
+                                  type(instance).__name__)
+            results.failed(self, cause)
             return
         args = tuple(self._params[2])
         result = target(*args)

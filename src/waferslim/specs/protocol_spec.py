@@ -5,8 +5,7 @@ BDD-style Lancelot specifications for the behaviour of the core library classes
 import lancelot
 from lancelot.comparators import Type
 from waferslim.protocol import pack, unpack, UnpackingError, RequestResponder
-from waferslim.execution import ExecutionContext, Results, Instructions, \
-                                instruction_for
+from waferslim.execution import ExecutionContext, Results
 
 SAMPLE_DATA = [
                ([],                 '[000000:]'),

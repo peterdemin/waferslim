@@ -6,8 +6,7 @@ import lancelot, sys, types
 from lancelot.comparators import Type, SameAs
 from waferslim.execution import ExecutionContext, Results, Instructions, \
                                 instruction_for
-from waferslim.instructions import InstructionException, \
-                                Make, Import, Call, CallAndAssign
+from waferslim.instructions import Make, Import, Call, CallAndAssign
 from waferslim.specs.spec_classes import ClassWithNoArgs, ClassWithOneArg, \
                                          ClassWithTwoArgs
 
@@ -146,15 +145,14 @@ class ResultsBehaviour(object):
     def raised(self):
         ''' raised() should add a translated error message to results list. 
         Results list should be accessible through collection() '''
-        translated_msg = '__EXCEPTION__: ' \
-            + 'message:<<MALFORMED_INSTRUCTION bucket>>'
+        formatted_cause = '__EXCEPTION__: message:<<bucket>>'
         instruction = lancelot.MockSpec(name='instruction')
         spec = lancelot.Spec(Results())
-        spec.raised(instruction, InstructionException('bucket'))
+        spec.failed(instruction, 'bucket')
         spec.should_collaborate_with(
             instruction.instruction_id().will_return('b')
             )
-        spec.collection().should_be([['b', translated_msg]])
+        spec.collection().should_be([['b', formatted_cause]])
         
     @lancelot.verifiable
     def completed_with_result(self):
