@@ -1,0 +1,1 @@
+''' Module used solely to verify the behaviour of the Import instruction '''
