@@ -92,6 +92,7 @@ class ExecutionContext(object):
     def __init__(self):
         ''' Set up the isolated context ''' 
         self._instances = {} 
+        self._symbols = {} 
     
     def get_type(self, fully_qualified_name):
         ''' Get a type instance from the context '''
@@ -128,13 +129,21 @@ class ExecutionContext(object):
                               fromlist=[unqualified_name])
     
     def store_instance(self, name, value):
-        ''' Add a name=value pair to the context locals '''
+        ''' Add a name=value pair to the context instances '''
         self._instances[name] = value
 
     def get_instance(self, name):
-        ''' Get value from a name=value pair in the context locals '''
+        ''' Get value from a name=value pair in the context instances '''
         return self._instances[name]
     
     def add_import_path(self, path):
         ''' An an import location to the context path '''
         sys.path.append(path)
+    
+    def store_symbol(self, name, value):
+        ''' Add a name=value pair to the context symbols '''
+        self._symbols[name] = value
+
+    def get_symbol(self, name):
+        ''' Get value from a name=value pair in the context symbols '''
+        return self._symbols[name]

@@ -68,24 +68,42 @@ class Call(Instruction):
     ''' A "call <instance>, <function>, <args>..." instruction '''
     
     def execute(self, execution_context, results):
+        ''' Delegate to _invoke_call then record results on completion '''
+        result, failed = self._invoke(execution_context, results, self._params)
+        if failed:
+            return
+        results.completed(self, result)
+        
+    def _invoke(self, execution_context, results, params):
         ''' Get an instance from the execution context and invoke a method'''
         try:
-            instance = execution_context.get_instance(self._params[0])
+            instance = execution_context.get_instance(params[0])
         except KeyError:
-            results.failed(self, '%s %s' % (_NO_INSTANCE, self._params[0]))
-            return
+            results.failed(self, '%s %s' % (_NO_INSTANCE, params[0]))
+            return (None, True)
         try:
-            target = getattr(instance, self._params[1])
+            target = getattr(instance, params[1])
         except AttributeError:
-            cause = '%s %s %s' % (_NO_METHOD, self._params[1], 
+            cause = '%s %s %s' % (_NO_METHOD, params[1], 
                                   type(instance).__name__)
             results.failed(self, cause)
-            return
-        args = tuple(self._params[2])
+            return (None, True)
+        args = tuple(params[2])
         result = target(*args)
-        results.completed(self, result)
+        return (result, False)
 
-class CallAndAssign(Instruction):
+class CallAndAssign(Call):
     ''' A "callAndAssign <symbol>, <instance>, <function>, <args>..." 
     instruction '''
-    pass
+
+    def execute(self, execution_context, results):
+        ''' Delegate to _invoke_call then set variable and record results 
+        on completion '''
+        params = []
+        params.extend(self._params)
+        symbol_name = params.pop(0)
+        result, failed = self._invoke(execution_context, results, params)
+        if failed:
+            return
+        execution_context.store_symbol(symbol_name, result)
+        results.completed(self, result)

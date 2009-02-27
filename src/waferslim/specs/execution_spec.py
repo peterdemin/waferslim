@@ -101,6 +101,20 @@ class ExecutionContextBehaviour(object):
         path = os.path.abspath(path + '/../../non-src')
         spec.when(spec.add_import_path(path))
         spec.then(spec.get_module('import_me')).should_not_raise(ImportError)
+        
+    @lancelot.verifiable
+    def stores_symbol(self):
+        ''' store_symbol(name, value) should put the name,value pair in the
+        symbols dict where it can be retrieved by get_symbol(name). 
+        symbols should be isolated across execution contexts'''
+        spec = lancelot.Spec(ExecutionContext())
+        spec.get_symbol('another_bucket').should_raise(KeyError)
+
+        spec.when(spec.store_symbol('another_bucket', 'for monsieur'))
+        spec.then(spec.get_symbol('another_bucket')).should_be('for monsieur')
+
+        spec = lancelot.Spec(ExecutionContext())
+        spec.get_symbol('another_bucket').should_raise(KeyError)
 
 lancelot.grouping(ExecutionContextBehaviour)
 

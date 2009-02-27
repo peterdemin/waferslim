@@ -194,5 +194,17 @@ def import_adds_to_pythonpath():
 
 lancelot.grouping(CallExceptionBehaviour)
 
+@lancelot.verifiable
+def call_and_assign_sets_variable():
+    execution_context = lancelot.MockSpec('execution_context')
+    results = lancelot.MockSpec('results')
+    call_and_assign = CallAndAssign('id', ['symbol', 'list', '__len__', []])
+    spec = lancelot.Spec(call_and_assign)
+    spec.execute(execution_context, results).should_collaborate_with(
+            execution_context.get_instance('list').will_return([]),
+            execution_context.store_symbol('symbol', 0),
+            results.completed(call_and_assign, 0)
+        )
+
 if __name__ == '__main__':
     lancelot.verify()
