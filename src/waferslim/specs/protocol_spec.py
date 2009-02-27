@@ -121,7 +121,7 @@ def instruction_for_behaviour():
 @lancelot.verifiable
 def instructions_behaviour():
     ''' Instructions should collaborate with instruction_for to instantiate
-    a list of instructions, which execute() loops through to execute'''
+    a list of instructions, which execute() loops through '''
     mock_fn = lancelot.MockSpec(name='mock_fn')
     mock_make = lancelot.MockSpec(name='mock_make')
     mock_call = lancelot.MockSpec(name='mock_call')
@@ -150,7 +150,7 @@ class ResultsBehaviour(object):
         Results list should be accessible through collection() '''
         instruction = lancelot.MockSpec(name='instruction')
         spec = lancelot.Spec(Results())
-        spec.completed_ok(instruction).should_collaborate_with(
+        spec.completed(instruction).should_collaborate_with(
             instruction.instruction_id().will_return('a')
             )
         spec.collection().should_be([['a', 'OK']])
@@ -159,7 +159,8 @@ class ResultsBehaviour(object):
     def raised(self):
         ''' raised() should add a translated error message to results list. 
         Results list should be accessible through collection() '''
-        translated_msg = '__EXCEPTION__: message:<<MALFORMED_INSTRUCTION bucket>>'
+        translated_msg = '__EXCEPTION__: ' \
+            + 'message:<<MALFORMED_INSTRUCTION bucket>>'
         instruction = lancelot.MockSpec(name='instruction')
         spec = lancelot.Spec(Results())
         spec.raised(instruction, InstructionException('bucket'))
@@ -167,6 +168,29 @@ class ResultsBehaviour(object):
             instruction.instruction_id().will_return('b')
             )
         spec.collection().should_be([['b', translated_msg]])
+        
+    @lancelot.verifiable
+    def completed_with_result(self):
+        ''' completed() should add to results list. 
+        Results list should be accessible through collection() '''
+        instruction = lancelot.MockSpec(name='instruction')
+        result = lancelot.MockSpec(name='result')
+        spec = lancelot.Spec(Results())
+        spec.completed(instruction, result=result).should_collaborate_with(
+            instruction.instruction_id().will_return('b')
+            )
+        spec.collection().should_be([['b', str(result)]])
+        
+    @lancelot.verifiable
+    def completed_with_None(self):
+        ''' completed() should add to results list. 
+        Results list should be accessible through collection() '''
+        instruction = lancelot.MockSpec(name='instruction')
+        spec = lancelot.Spec(Results())
+        spec.completed(instruction, result=None).should_collaborate_with(
+            instruction.instruction_id().will_return('c')
+            )
+        spec.collection().should_be([['c', '/__VOID__/']])
 
 lancelot.grouping(PackBehaviour)
 lancelot.grouping(UnpackBehaviour)

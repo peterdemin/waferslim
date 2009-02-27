@@ -11,6 +11,7 @@ Copyright 2009 by the author(s). All rights reserved
 from waferslim import WaferSlimException
 from waferslim.execution import ExecutionContext, InstructionException, \
         NoSuchClassException, NoSuchConstructorException, \
+        NoSuchInstanceException, NoSuchMethodException, \
         Make, Import, Call, CallAndAssign
 
 class UnpackingError(WaferSlimException):
@@ -121,19 +122,31 @@ _OK = 'OK'
 _EXCEPTION = '__EXCEPTION__:'
 _EXCEPTIONS = {InstructionException:'MALFORMED_INSTRUCTION',
                NoSuchClassException:'NO_CLASS',
-               NoSuchConstructorException:'COULD_NOT_INVOKE_CONSTRUCTOR'
-               }
- 
+               NoSuchConstructorException:'COULD_NOT_INVOKE_CONSTRUCTOR',
+               NoSuchInstanceException: 'NO_INSTANCE',
+               NoSuchMethodException:'NO_METHOD_IN_CLASS'
+              }
+
+_NONE_STRING = '/__VOID__/'
+
 class Results(object):
     ''' Collecting parameter for results of Instruction execute() methods '''
+    NO_RESULT = object()
+    
     def __init__(self):
         ''' Set up the list to hold the collected results '''
         self._collected = []
     
-    def completed_ok(self, instruction):
-        ''' An instruction has completed as expected '''
-        self._collected.append([instruction.instruction_id(), _OK])
-        
+    def completed(self, instruction, result=NO_RESULT):
+        ''' An instruction has completed, perhaps with a result '''
+        if result == Results.NO_RESULT:
+            str_result = _OK
+        elif result:
+            str_result = str(result)
+        else:
+            str_result = _NONE_STRING
+        self._collected.append([instruction.instruction_id(), str_result])
+          
     def raised(self, instruction, exception):
         ''' An instruction has raised an exception. The nature of the
         exception will be translated into the relevant Slim protocol format.'''

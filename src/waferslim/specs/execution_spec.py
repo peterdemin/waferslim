@@ -7,10 +7,11 @@ from lancelot.comparators import Type, SameAs, ExceptionValue
 from waferslim.execution import Instruction, ExecutionContext, \
                                 InstructionException, NoSuchClassException, \
                                 NoSuchConstructorException, \
+                                NoSuchInstanceException, \
+                                NoSuchMethodException, \
                                 Make, Import, Call, CallAndAssign
-from waferslim.specs.spec_classes import ClassWithNoArgConstructor, \
-                                         ClassWithOneArgConstructor, \
-                                         ClassWithTwoArgConstructor
+from waferslim.specs.spec_classes import ClassWithNoArgs, ClassWithOneArg, \
+                                         ClassWithTwoArgs
 
 class ExecutionContextBehaviour(object):
     ''' Related Specs for ExecutionContext behaviour '''
@@ -50,12 +51,12 @@ class ExecutionContextBehaviour(object):
         successive invocations. The same type should be returned from
         different contexts. '''
         _types = {}
-        _types['waferslim.specs.spec_classes.ClassWithNoArgConstructor'] \
-             = ClassWithNoArgConstructor
-        _types['waferslim.specs.spec_classes.ClassWithOneArgConstructor'] \
-             = ClassWithOneArgConstructor
-        _types['waferslim.specs.spec_classes.ClassWithTwoArgConstructor'] \
-             = ClassWithTwoArgConstructor
+        _types['waferslim.specs.spec_classes.ClassWithNoArgs'] \
+             = ClassWithNoArgs
+        _types['waferslim.specs.spec_classes.ClassWithOneArg'] \
+             = ClassWithOneArg
+        _types['waferslim.specs.spec_classes.ClassWithTwoArgs'] \
+             = ClassWithTwoArgs
         
         execution_context = ExecutionContext()
         spec = lancelot.Spec(execution_context)
@@ -123,9 +124,9 @@ class BaseInstructionBehaviour(object):
 def make_creates_instance():
     ''' Make.execute() should instantiate the class & add it to context '''
     package = 'waferslim.specs.spec_classes'
-    classes = {ClassWithNoArgConstructor:[],
-               ClassWithOneArgConstructor:[1],
-               ClassWithTwoArgConstructor:['a', 'b']}
+    classes = {ClassWithNoArgs:[],
+               ClassWithOneArg:[1],
+               ClassWithTwoArgs:['a', 'b']}
     for target in classes.keys():
         name = target.__name__
         execution_context = lancelot.MockSpec(name='execution_context')
@@ -144,12 +145,13 @@ class MakeExceptionBehaviour(object):
 
     @lancelot.verifiable
     def handles_wrong_args(self):
+        ''' NoSuchConstructorException indicates incorrect constructor args '''
         wrong_params = ['creosote', 'FakeClass',
                         ['some unwanted', 'constructor args']
                        ]
         execution_context = lancelot.MockSpec(name='execution_context')
         results = lancelot.MockSpec(name='results')
-        a_class = ClassWithNoArgConstructor
+        a_class = ClassWithNoArgs
         make_instruction = Make('wrong params', wrong_params)
         spec = lancelot.Spec(make_instruction)
         spec.execute(execution_context, results).should_collaborate_with(
@@ -157,9 +159,10 @@ class MakeExceptionBehaviour(object):
             results.raised(make_instruction, 
                            ExceptionValue(NoSuchConstructorException))
         )
-        
+
     @lancelot.verifiable
     def handles_bad_type(self):
+        ''' NoSuchClassException indicates unknown type '''
         wrong_params = ['creosote', 'FakeClass',
                         ['some unwanted', 'constructor args']
                        ]
@@ -172,9 +175,10 @@ class MakeExceptionBehaviour(object):
             results.raised(make_instruction, 
                            ExceptionValue(NoSuchClassException))
         )
-        
+
     @lancelot.verifiable
     def handles_bad_import(self):
+        ''' NoSuchClassException also indicates import problem '''
         wrong_params = ['creosote', 'FakeClass',
                         ['some unwanted', 'constructor args']
                        ]
@@ -187,11 +191,67 @@ class MakeExceptionBehaviour(object):
                 .will_raise(ImportError('y')),
             results.raised(make_instruction, 
                            ExceptionValue(NoSuchClassException))
-        )
+        )          
+
+@lancelot.verifiable
+def call_invokes_method():
+    ''' Call instruction should get an instance from context and execute a
+    callable method on it, returning the results '''
+    methods = {'method_0':[],
+               'method_1':[1],
+               'method_2':['a', 'b']}
+    for target in methods.keys():
+        instance = lancelot.MockSpec(name='instance')
+        result = ','.join([str(arg) for arg in methods[target]])
+        execution_context = lancelot.MockSpec(name='execution_context')
+        results = lancelot.MockSpec(name='results')
+        params = ['instance', 'method', methods[target]]
+        call_instruction = Call('id_90', params)
+        spec = lancelot.Spec(call_instruction)
+        spec.execute(execution_context, results).should_collaborate_with(
+            execution_context.get_instance(params[0]).will_return(instance),
+            instance.method(*tuple(params[2])).will_return(result),
+            results.completed(call_instruction, result)
+            )
+
+class CallExceptionBehaviour(object):
+    ''' Exception-related Specs for Call-instruction behaviour '''
+
+    @lancelot.verifiable
+    def handles_bad_instance(self):
+        ''' NoSuchInstanceException indicates bad instance name in Call ''' 
+        execution_context = lancelot.MockSpec(name='execution_context')
+        results = lancelot.MockSpec(name='results')
+        params = ['bad_instance', 'method', 'args']
+        call_instruction = Call('id_9A', params)
+        spec = lancelot.Spec(call_instruction)
+        spec.execute(execution_context, results).should_collaborate_with(
+            execution_context.get_instance(params[0]).will_raise(KeyError),
+            results.raised(call_instruction, 
+                           NoSuchInstanceException(params[0]))
+            )
+
+    @lancelot.verifiable
+    def handles_bad_method(self):
+        ''' NoSuchMethodException indicates bad method name for Call target ''' 
+        execution_context = lancelot.MockSpec(name='execution_context')
+        results = lancelot.MockSpec(name='results')
+        params = ['instance', 'bad_method', 'args']
+        instance = ClassWithNoArgs()
+        msg = '%s %s' % (params[1], type(instance))
+        
+        call_instruction = Call('id_9B', params)
+        spec = lancelot.Spec(call_instruction)
+        
+        spec.execute(execution_context, results).should_collaborate_with(
+            execution_context.get_instance(params[0]).will_return(instance),
+            results.raised(call_instruction, NoSuchMethodException(msg))
+            )
 
 lancelot.grouping(ExecutionContextBehaviour)
 lancelot.grouping(BaseInstructionBehaviour)
 lancelot.grouping(MakeExceptionBehaviour)
+lancelot.grouping(CallExceptionBehaviour)
 
 if __name__ == '__main__':
     lancelot.verify()

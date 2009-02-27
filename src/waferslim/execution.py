@@ -21,6 +21,14 @@ class NoSuchConstructorException(InstructionException):
     ''' Indicate an Make Instruction-related error ''' 
     pass
 
+class NoSuchInstanceException(InstructionException):
+    ''' Indicate a Call or CallAndAssign Instruction-related error ''' 
+    pass
+
+class NoSuchMethodException(InstructionException):
+    ''' Indicate a Call or CallAndAssign Instruction-related error ''' 
+    pass
+
 class ExecutionContext(object):
     ''' Contextual execution environment to allow simultaneous code executions
     to take place without interfering with each other.
@@ -102,7 +110,6 @@ class Make(Instruction):
     
     def execute(self, execution_context, results):
         ''' Create a class instance and add it to the execution context ''' 
-        name = self._params[0]
         try:
             target = execution_context.get_type(self._params[1])
         except (TypeError, ImportError), error:
@@ -113,7 +120,7 @@ class Make(Instruction):
         args = tuple(self._params[2])
         try:
             instance = target(*args)
-            execution_context.store_instance(name, instance)
+            execution_context.store_instance(self._params[0], instance)
             results.completed_ok(self)
         except TypeError, error:
             msg = '%s %s' % (self._params[1], error.args[0])
@@ -121,7 +128,23 @@ class Make(Instruction):
 
 class Call(Instruction):
     ''' A "call <instance>, <function>, <args>..." instruction '''
-    pass
+    
+    def execute(self, execution_context, results):
+        ''' Get an instance from the execution context and invoke a method'''
+        try:
+            instance = execution_context.get_instance(self._params[0])
+        except KeyError:
+            results.raised(self, NoSuchInstanceException(self._params[0]))
+            return
+        try:
+            target = getattr(instance, self._params[1])
+        except AttributeError:
+            msg = '%s %s' % (self._params[1], type(instance))
+            results.raised(self, NoSuchMethodException(msg))
+            return
+        args = tuple(self._params[2])
+        result = target(*args)
+        results.completed(self, result)
 
 class CallAndAssign(Instruction):
     ''' A "callAndAssign <symbol>, <instance>, <function>, <args>..." 
