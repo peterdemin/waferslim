@@ -6,6 +6,7 @@ The latest source code is available at http://code.launchpad.net/waferslim.
 
 Copyright 2009 by the author(s). All rights reserved 
 '''
+import re
 
 _BAD_INSTRUCTION = 'INVALID_STATEMENT'
 _NO_CLASS = 'NO_CLASS'
@@ -66,6 +67,7 @@ class Make(Instruction):
 
 class Call(Instruction):
     ''' A "call <instance>, <function>, <args>..." instruction '''
+    _PATTERN = re.compile('\\$([a-zA-Z]\\w*)', re.UNICODE)
     
     def execute(self, execution_context, results):
         ''' Delegate to _invoke_call then record results on completion '''
@@ -88,9 +90,22 @@ class Call(Instruction):
                                   type(instance).__name__)
             results.failed(self, cause)
             return (None, True)
-        args = tuple(params[2])
+        args = self._make_args(execution_context, params[2])
         result = target(*args)
         return (result, False)
+    
+    def _make_args(self, execution_context, args_list):
+        ''' make a tuple of args from a list containing values and symbols'''
+        args_without_symbols = [self._nonsymbolic(execution_context, arg) \
+                                for arg in args_list]
+        return tuple(args_without_symbols)
+    
+    def _nonsymbolic(self, execution_context, possible_symbol):
+        ''' perform any symbol substitution on a possible_symbol '''
+        match = Call._PATTERN.match(possible_symbol)
+        if match:
+            return execution_context.get_symbol(match.groups()[0])
+        return possible_symbol
 
 class CallAndAssign(Call):
     ''' A "callAndAssign <symbol>, <instance>, <function>, <args>..." 

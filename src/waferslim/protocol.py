@@ -14,7 +14,7 @@ from waferslim.execution import Results, ExecutionContext, Instructions
 class UnpackingError(WaferSlimException):
     ''' An attempt was made to unpack messages that do not conform 
     to the protocol spec '''  
-    pass
+    pass #TODO: MALFORMED_INSTRUCTION [instruction list]?
 
 _BYTE_ENCODING = 'utf-8'
 _VERSION = 'Slim -- V0.0\n'

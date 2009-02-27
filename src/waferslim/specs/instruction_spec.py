@@ -131,7 +131,7 @@ def call_invokes_method():
     ''' Call instruction should get an instance from context and execute a
     callable method on it, returning the results '''
     methods = {'method_0':[],
-               'method_1':[1],
+               'method_1':['1'],
                'method_2':['a', 'b']}
     for target in methods.keys():
         instance = lancelot.MockSpec(name='instance')
@@ -146,6 +146,23 @@ def call_invokes_method():
             instance.method(*tuple(params[2])).will_return(result),
             results.completed(call_instruction, result)
             )
+
+@lancelot.verifiable
+def call_substitutes_symbols():
+    ''' Call instruction should perform variable substitution on its params '''
+    execution_context = lancelot.MockSpec(name='execution_context')
+    results = lancelot.MockSpec(name='results')
+    instance = lancelot.MockSpec(name='instance')
+    call_instruction = Call('with_symbol_substitution', 
+                            ['instance', 'method', ['$A', '$b_', 'C$']])
+    spec = lancelot.Spec(call_instruction)
+    spec.execute(execution_context, results).should_collaborate_with(
+            execution_context.get_instance('instance').will_return(instance),
+            execution_context.get_symbol('A').will_return('X'),
+            execution_context.get_symbol('b_').will_return('Y'),
+            instance.method('X', 'Y', 'C$').will_return(42),
+            results.completed(call_instruction, 42)
+        )
 
 class CallExceptionBehaviour(object):
     ''' Exception-related Specs for Call-instruction behaviour '''
