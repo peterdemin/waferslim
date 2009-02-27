@@ -6,7 +6,6 @@ The latest source code is available at http://code.launchpad.net/waferslim.
 
 Copyright 2009 by the author(s). All rights reserved 
 '''
-from waferslim import WaferSlimException
 
 _BAD_INSTRUCTION = 'INVALID_STATEMENT'
 _NO_CLASS = 'NO_CLASS'
@@ -36,7 +35,12 @@ class Instruction(object):
 
 class Import(Instruction):
     ''' An "import <path>" instruction '''
-    pass
+    
+    def execute(self, execution_context, results):
+        ''' Adds the imported path to the execution context '''
+        path = self._params[0]
+        execution_context.add_import_path(path)
+        results.completed(self)
 
 class Make(Instruction):
     ''' A "make <instance>, <class>, <args>..." instruction '''

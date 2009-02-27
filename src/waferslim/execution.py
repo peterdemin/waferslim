@@ -134,3 +134,7 @@ class ExecutionContext(object):
     def get_instance(self, name):
         ''' Get value from a name=value pair in the context locals '''
         return self._instances[name]
+    
+    def add_import_path(self, path):
+        ''' An an import location to the context path '''
+        sys.path.append(path)

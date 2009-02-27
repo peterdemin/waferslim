@@ -3,7 +3,7 @@ BDD-style Lancelot specifications for the behaviour of the core library classes
 '''
 
 import lancelot
-from lancelot.comparators import Type, ExceptionValue
+from lancelot.comparators import Type
 from waferslim.instructions import Instruction, \
                                    Make, Import, Call, CallAndAssign
 from waferslim.specs.spec_classes import ClassWithNoArgs, ClassWithOneArg, \
@@ -180,6 +180,17 @@ class CallExceptionBehaviour(object):
             execution_context.get_instance(params[0]).will_return(instance),
             results.failed(call_instruction, cause)
             )
+        
+@lancelot.verifiable
+def import_adds_to_pythonpath():
+    execution_context = lancelot.MockSpec('execution_context')
+    results = lancelot.MockSpec('results')
+    import_instruction = Import('id', ['some_path'])
+    spec = lancelot.Spec(import_instruction)
+    spec.execute(execution_context, results).should_collaborate_with(
+            execution_context.add_import_path('some_path'),
+            results.completed(import_instruction)
+        )
 
 lancelot.grouping(CallExceptionBehaviour)
 

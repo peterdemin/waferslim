@@ -2,7 +2,7 @@
 BDD-style Lancelot specifications for the behaviour of the core library classes
 '''
 
-import lancelot, sys, types
+import lancelot, os, sys, types
 from lancelot.comparators import Type, SameAs
 from waferslim.execution import ExecutionContext, Results, Instructions, \
                                 instruction_for
@@ -90,6 +90,17 @@ class ExecutionContextBehaviour(object):
 
         spec = lancelot.Spec(ExecutionContext())
         spec.get_instance('wafer thin').should_raise(KeyError)
+        
+    @lancelot.verifiable
+    def uses_added_import_paths(self):
+        ''' add_import_path() should allow packages or modules to be found '''
+        spec = lancelot.Spec(ExecutionContext())
+        spec.get_module('import_me').should_raise(ImportError)
+        
+        path = ExecutionContext().get_module('waferslim').__path__[0]
+        path = os.path.abspath(path + '/../../non-src')
+        spec.when(spec.add_import_path(path))
+        spec.then(spec.get_module('import_me')).should_not_raise(ImportError)
 
 lancelot.grouping(ExecutionContextBehaviour)
 
