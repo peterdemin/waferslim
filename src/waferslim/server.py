@@ -21,7 +21,7 @@ class SlimRequestHandler(SocketServer.BaseRequestHandler, RequestResponder):
         from_addr = self.client_address
         self.info('Handling request from %s:%s' % from_addr)
         
-        received, sent = self.respond_to(self.request)
+        received, sent = self.respond_to_request()
         
         done_msg = 'Done: %s bytes received, %s bytes sent'
         self.info(done_msg % (received, sent))

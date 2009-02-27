@@ -76,8 +76,10 @@ def request_responder_behaviour():
     to recv; OR if the message content is a "bye" then terminate '''
     request = lancelot.MockSpec(name='request')
     instructions = lancelot.MockSpec(name='instructions')
-    spec = lancelot.Spec(RequestResponder())
-    spec.respond_to(request, instructions=lambda data: instructions)
+    request_responder = RequestResponder()
+    request_responder.request = request
+    spec = lancelot.Spec(request_responder)
+    spec.respond_to_request(instructions=lambda data: instructions)
     spec.should_collaborate_with(
         request.send('Slim -- V0.0\n'.encode('utf-8')).will_return(2),
         request.recv(7).will_return('000009:'.encode('utf-8')),
@@ -90,8 +92,10 @@ def request_responder_behaviour():
     
     request = lancelot.MockSpec(name='request')
     instructions = lancelot.MockSpec(name='instructions')
-    spec = lancelot.Spec(RequestResponder())
-    spec.respond_to(request, instructions=lambda data: instructions)
+    request_responder = RequestResponder()
+    request_responder.request = request
+    spec = lancelot.Spec(request_responder)
+    spec.respond_to_request(instructions=lambda data: instructions)
     spec.should_collaborate_with(
         request.send('Slim -- V0.0\n'.encode('utf-8')).will_return(2),
         request.recv(7).will_return('000009:'.encode('utf-8')),
