@@ -7,8 +7,8 @@ The latest source code is available at http://code.launchpad.net/waferslim.
 Copyright 2009 by the author(s). All rights reserved 
 '''
 import sys
-from waferslim import WaferSlimException
-from waferslim.instructions import Make, Call, CallAndAssign, Import
+from waferslim.instructions import Instruction, \
+                                   Make, Call, CallAndAssign, Import
 
 _OK = 'OK'
 _EXCEPTION = '__EXCEPTION__:'
@@ -60,7 +60,10 @@ def instruction_for(params):
     ''' Factory method for Instruction types '''
     instruction_type = params.pop(_TYPE_POSITION)
     instruction_id = params.pop(_ID_POSITION)
-    return _INSTRUCTION_TYPES[instruction_type](instruction_id, params)
+    try:
+        return _INSTRUCTION_TYPES[instruction_type](instruction_id, params)
+    except KeyError:
+        return Instruction(instruction_id, [instruction_type])
 
 class Instructions(object):
     ''' Container for executable sequence of Instruction-s '''
@@ -75,7 +78,10 @@ class Instructions(object):
         ''' Create and execute Instruction-s, collecting the results '''
         for item in self._unpacked_list:
             instruction = self._instruction_for(item)
-            instruction.execute(execution_context, results)
+            try:
+                instruction.execute(execution_context, results)
+            except Exception, error:
+                results.failed(instruction, error.args[0])
      
 class ExecutionContext(object):
     ''' Contextual execution environment to allow simultaneous code executions

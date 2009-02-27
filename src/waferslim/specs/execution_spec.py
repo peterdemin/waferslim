@@ -6,7 +6,8 @@ import lancelot, sys, types
 from lancelot.comparators import Type, SameAs
 from waferslim.execution import ExecutionContext, Results, Instructions, \
                                 instruction_for
-from waferslim.instructions import Make, Import, Call, CallAndAssign
+from waferslim.instructions import Make, Import, Call, CallAndAssign, \
+                                   Instruction
 from waferslim.specs.spec_classes import ClassWithNoArgs, ClassWithOneArg, \
                                          ClassWithTwoArgs
 
@@ -97,42 +98,69 @@ def instruction_for_behaviour():
     ''' instruction_for should return instantiate the correct type of 
     instruction, based on the name given in the list passed to it ''' 
     spec = lancelot.Spec(instruction_for)
-    known_instructions = {'make':Type(Make),
-                          'import':Type(Import),
-                          'call':Type(Call),
-                          'callAndAssign':Type(CallAndAssign)}
-    for name, instruction in known_instructions.items():
+    instructions = {'make':Type(Make),
+                    'import':Type(Import),
+                    'call':Type(Call),
+                    'callAndAssign':Type(CallAndAssign),
+                    'noSuchInstruction':Type(Instruction)}
+    for name, instruction in instructions.items():
         spec.instruction_for(['id', name, []]).should_be(instruction)
 
-@lancelot.verifiable
-def instructions_behaviour():
-    ''' Instructions should collaborate with instruction_for to instantiate
-    a list of instructions, which execute() loops through '''
-    mock_fn = lancelot.MockSpec(name='mock_fn')
-    mock_make = lancelot.MockSpec(name='mock_make')
-    mock_call = lancelot.MockSpec(name='mock_call')
-    a_list = [
-              ['id_0', 'make', 'instance', 'fixture', 'argument'],
-              ['id_1', 'call', 'instance', 'f', '3']
-             ]
-    instructions = Instructions(a_list, 
-                                lambda item: mock_fn.instruction_for(item))
-    spec = lancelot.Spec(instructions)
-    ctx = ExecutionContext()
-    results = Results() 
-    spec.execute(ctx, results).should_collaborate_with(
-            mock_fn.instruction_for(a_list[0]).will_return(mock_make),
-            mock_make.execute(ctx, results),
-            mock_fn.instruction_for(a_list[1]).will_return(mock_call),
-            mock_call.execute(ctx, results)
-        )
+class InstructionsBehaviour(object):
+    ''' Group of Instructions-related specifications '''
+
+    @lancelot.verifiable
+    def loops_through_list(self):
+        ''' Instructions should collaborate with instruction_for to instantiate
+        a list of instructions, which execute() loops through '''
+        mock_fn = lancelot.MockSpec(name='mock_fn')
+        mock_make = lancelot.MockSpec(name='mock_make')
+        mock_call = lancelot.MockSpec(name='mock_call')
+        a_list = [
+                  ['id_0', 'make', 'instance', 'fixture', 'argument'],
+                  ['id_1', 'call', 'instance', 'f', '3']
+                 ]
+        instructions = Instructions(a_list, 
+                                    lambda item: mock_fn.instruction_for(item))
+        spec = lancelot.Spec(instructions)
+        ctx = ExecutionContext()
+        results = Results() 
+        spec.execute(ctx, results).should_collaborate_with(
+                mock_fn.instruction_for(a_list[0]).will_return(mock_make),
+                mock_make.execute(ctx, results),
+                mock_fn.instruction_for(a_list[1]).will_return(mock_call),
+                mock_call.execute(ctx, results)
+            )
+
+    @lancelot.verifiable
+    def handles_execute_exceptions(self):
+        ''' execute() should catch thrown exceptions and register the 
+        instruction as failed '''
+        mock_fn = lancelot.MockSpec(name='mock_fn')
+        mock_call = lancelot.MockSpec(name='mock_call')
+        results = lancelot.MockSpec(name='results')
+        a_list = [
+                  ['id_', 'call', 'instance', 'fn', 'arg']
+                 ]
+        instructions = Instructions(a_list, 
+                                    lambda item: mock_fn.instruction_for(item))
+        spec = lancelot.Spec(instructions)
+        ctx = ExecutionContext()
+        msg = "I couldn't eat another thing. I'm absolutely stuffed."
+        spec.execute(ctx, results).should_collaborate_with(
+                mock_fn.instruction_for(a_list[0]).will_return(mock_call),
+                mock_call.execute(ctx, results).will_raise(Exception(msg)),
+                results.failed(mock_call, msg)
+            )
+
+lancelot.grouping(InstructionsBehaviour)
 
 class ResultsBehaviour(object):
     ''' Group of related specs for Results behaviour '''
     
     @lancelot.verifiable
     def completed_ok(self):
-        ''' completed_ok() should add to results list. 
+        ''' completed() for Make should add ok to results list. 
         Results list should be accessible through collection() '''
         instruction = lancelot.MockSpec(name='instruction')
         spec = lancelot.Spec(Results())
@@ -142,8 +170,8 @@ class ResultsBehaviour(object):
         spec.collection().should_be([['a', 'OK']])
 
     @lancelot.verifiable
-    def raised(self):
-        ''' raised() should add a translated error message to results list. 
+    def failed(self):
+        ''' failed() should add a translated error message to results list. 
         Results list should be accessible through collection() '''
         formatted_cause = '__EXCEPTION__: message:<<bucket>>'
         instruction = lancelot.MockSpec(name='instruction')
@@ -156,7 +184,7 @@ class ResultsBehaviour(object):
         
     @lancelot.verifiable
     def completed_with_result(self):
-        ''' completed() should add to results list. 
+        ''' completed() for Call should add to results list. 
         Results list should be accessible through collection() '''
         instruction = lancelot.MockSpec(name='instruction')
         result = lancelot.MockSpec(name='result')

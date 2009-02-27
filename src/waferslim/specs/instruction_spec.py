@@ -35,6 +35,17 @@ class BaseInstructionBehaviour(object):
         spec = lancelot.Spec(FakeInstruction('an_id', ['param1', 'param2']))
         spec.instruction_id().should_be('an_id')
         spec.execute(object(), object()).should_be(['param1', 'param2'])
+        
+    @lancelot.verifiable
+    def execute_fails(self):
+        ''' The base class execute() method fails with INVALID_STATEMENT '''
+        instruction = Instruction('id', ['nonsense'])
+        spec = lancelot.Spec(instruction)
+        execution_context = lancelot.MockSpec('execution_context')
+        results = lancelot.MockSpec('results')
+        spec.execute(execution_context, results).should_collaborate_with(
+                results.failed(instruction, 'INVALID_STATEMENT nonsense')
+            )
              
 lancelot.grouping(BaseInstructionBehaviour)
 

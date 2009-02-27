@@ -8,6 +8,7 @@ Copyright 2009 by the author(s). All rights reserved
 '''
 from waferslim import WaferSlimException
 
+_BAD_INSTRUCTION = 'INVALID_STATEMENT'
 _NO_CLASS = 'NO_CLASS'
 _NO_CONSTRUCTION = 'COULD_NOT_INVOKE_CONSTRUCTOR'
 _NO_INSTANCE = 'NO_INSTANCE'
@@ -29,8 +30,9 @@ class Instruction(object):
         return self._id
         
     def execute(self, execution_context, results):
-        ''' Execute within the context and add to the results '''
-        pass
+        ''' Base execute() is only called when the instruction type
+        was unrecognised -- fail with _BAD_INSTRUCTION '''
+        results.failed(self, '%s %s' % (_BAD_INSTRUCTION, self._params[0]))
 
 class Import(Instruction):
     ''' An "import <path>" instruction '''
