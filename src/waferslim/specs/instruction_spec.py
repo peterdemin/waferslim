@@ -200,6 +200,7 @@ class CallExceptionBehaviour(object):
         
 @lancelot.verifiable
 def import_adds_to_pythonpath():
+    ''' Import should add a path to the pythonpath '''
     execution_context = lancelot.MockSpec('execution_context')
     results = lancelot.MockSpec('results')
     import_instruction = Import('id', ['some_path'])
@@ -213,6 +214,7 @@ lancelot.grouping(CallExceptionBehaviour)
 
 @lancelot.verifiable
 def call_and_assign_sets_variable():
+    ''' CallAndAssign should assign a value to an execution context symbol '''
     execution_context = lancelot.MockSpec('execution_context')
     results = lancelot.MockSpec('results')
     call_and_assign = CallAndAssign('id', ['symbol', 'list', '__len__', []])
