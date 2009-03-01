@@ -46,7 +46,14 @@ class BaseInstructionBehaviour(object):
         spec.execute(execution_context, results).should_collaborate_with(
                 results.failed(instruction, 'INVALID_STATEMENT nonsense')
             )
-             
+    
+    @lancelot.verifiable
+    def repr_should_be_meaningful(self):
+        ''' repr(Instruction) should provide meaningful information'''
+        instruction = Instruction('id', ['param1', 'param2'])
+        spec = lancelot.Spec(instruction.__repr__)
+        spec.__call__().should_be("Instruction id: ['param1', 'param2']")
+        
 lancelot.grouping(BaseInstructionBehaviour)
 
 @lancelot.verifiable

@@ -7,9 +7,10 @@ use_setuptools()
 from setuptools import setup
 
 setup(name='waferslim', 
-      version='0.1',
+      version='0.9',
       packages=['waferslim', 'waferslim.specs', 'waferslim.examples'],
-      data_files=[('', ['README.txt', 'COPYING', 'COPYING.LESSER'])],
+      data_files=[('waferslim', ['logging.conf']),
+                  ('', ['README.txt', 'COPYING', 'COPYING.LESSER'])],
       provides=['waferslim'],
       depends=['lancelot'],
       license='GNU Lesser General Public License v3 (LGPL v3)',

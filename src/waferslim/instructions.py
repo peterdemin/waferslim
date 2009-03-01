@@ -27,6 +27,10 @@ class Instruction(object):
     def instruction_id(self):
         ''' Return the id of this instruction '''
         return self._id
+    
+    def __repr__(self):
+        ''' Return a meaningful representation of the Instruction '''
+        return '%s %s: %s' % (type(self).__name__, self._id, self._params) 
         
     def execute(self, execution_context, results):
         ''' Base execute() is only called when the instruction type

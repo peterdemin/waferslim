@@ -7,7 +7,7 @@ The latest source code is available at http://code.launchpad.net/waferslim.
 
 Copyright 2009 by the author(s). All rights reserved 
 '''
-import __builtin__, sys, threading
+import __builtin__, logging, sys, threading
 from waferslim.instructions import Instruction, \
                                    Make, Call, CallAndAssign, Import
 
@@ -74,15 +74,21 @@ class Instructions(object):
         into a sequence of Instruction-s to execute '''
         self._unpacked_list = unpacked_list
         self._instruction_for = factory_method
+        self._logger = logging.getLogger('Instructions')
     
     def execute(self, execution_context, results):
         ''' Create and execute Instruction-s, collecting the results '''
         for item in self._unpacked_list:
             instruction = self._instruction_for(item)
+            self._debug(instruction)
             try:
                 instruction.execute(execution_context, results)
             except Exception, error:
                 results.failed(instruction, error.args[0])
+    
+    def _debug(self, instruction):
+        ''' Log a debug message about the execution of Instruction-s '''
+        self._logger.debug('Executing %r' % instruction)
      
 class ExecutionContext(object):
     ''' Contextual execution environment to allow simultaneous code executions
