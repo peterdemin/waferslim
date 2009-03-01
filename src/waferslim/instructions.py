@@ -1,6 +1,5 @@
 '''
-Classes for turning instructions into a sequence of actions performed on 
-the underlying system under test. 
+Instruction classes that invoke actions on some underlying "system under test".
 
 The latest source code is available at http://code.launchpad.net/waferslim.
 

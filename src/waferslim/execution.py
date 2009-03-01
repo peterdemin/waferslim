@@ -1,6 +1,7 @@
 '''
-Classes for turning instructions into a sequence of actions performed on 
-the underlying system under test. 
+Classes for instantiating appropriate Instruction objects and executing them
+in sequence, providing a context in which Instruction-s can be executed, and 
+collecting the results from each execution.
 
 The latest source code is available at http://code.launchpad.net/waferslim.
 
