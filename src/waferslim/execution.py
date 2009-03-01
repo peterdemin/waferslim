@@ -7,7 +7,7 @@ The latest source code is available at http://code.launchpad.net/waferslim.
 
 Copyright 2009 by the author(s). All rights reserved 
 '''
-import sys
+import __builtin__, sys, threading
 from waferslim.instructions import Instruction, \
                                    Make, Call, CallAndAssign, Import
 
@@ -86,20 +86,23 @@ class Instructions(object):
      
 class ExecutionContext(object):
     ''' Contextual execution environment to allow simultaneous code executions
-    to take place without interfering with each other.
-    TODO: see whether import hooks or similar can be used to isolate loaded
-    modules across contexts: ?maybe with python 3.1 or 2.7? '''
+    to take place in isolation from each other.'''
+    
+    _SEMAPHORE = threading.Semaphore()
+    _REAL_IMPORT = __builtin__.__import__
+    _SYSPATH = sys.path
     
     def __init__(self):
         ''' Set up the isolated context ''' 
         self._instances = {} 
         self._symbols = {} 
+        self._path = []
+        self._imported = {}
+        self._modules = {}
+        self._modules.update(sys.modules)
     
     def get_type(self, fully_qualified_name):
-        ''' Get a type instance from the context '''
-        if fully_qualified_name in __builtins__:
-            return __builtins__[fully_qualified_name]
-        
+        ''' Get a type instance from the context '''        
         dot_pos = fully_qualified_name.rfind('.')
         if dot_pos == -1:
             msg = 'Type %s should be in a module' % fully_qualified_name
@@ -116,18 +119,51 @@ class ExecutionContext(object):
             raise TypeError(msg)
 
     def get_module(self, fully_qualified_name):
-        ''' Perform nested module import / lookup as needed '''
-        if fully_qualified_name in sys.modules:
-            return sys.modules[fully_qualified_name]
+        ''' Monkey-patch builtin __import__ and sys.path to ensure isolation
+        of the context and do so in a way that prevents multiple contexts
+        trying to monkey-patch simultaneously; perform import / lookup of
+        the module; then reset the global environment including del() of 
+        imported modules from sys.modules '''
+        ExecutionContext._SEMAPHORE.acquire()
+        try:
+            __builtin__.__import__ = self._import
+            sys.path = self._path
+            sys.path.extend(ExecutionContext._SYSPATH)
+            
+            return self._import_module(fully_qualified_name)
+        finally:
+            __builtin__.__import__ = ExecutionContext._REAL_IMPORT
+            sys.path = ExecutionContext._SYSPATH
+            try:
+                for mod in self._imported.keys():
+                    del(sys.modules[mod])
+                self._imported = {}
+            finally:
+                ExecutionContext._SEMAPHORE.release()
+    
+    def _import_module(self, fully_qualified_name):
+        ''' Actually perform nested module import / lookup of a module '''
         dot_pos = fully_qualified_name.rfind('.')
         if dot_pos == -1:
-            return __import__(fully_qualified_name)
+            return self._import(fully_qualified_name)
         else:
             parent_module = fully_qualified_name[:dot_pos]
             unqualified_name = fully_qualified_name[dot_pos + 1:]
-            self.get_module(parent_module)
-            return __import__(fully_qualified_name, 
-                              fromlist=[unqualified_name])
+            self._import_module(parent_module)
+            return self._import(fully_qualified_name, 
+                                fromlist=[unqualified_name])
+    
+    def _import(self, *args, **kwds):
+        ''' If module has already been imported, return it. Otherwise delegate
+        to builtin __import__ and keep note of the imported module.'''
+        try:
+            return self._modules[args[0]]
+        except KeyError:
+            pass
+        mod = ExecutionContext._REAL_IMPORT(*args, **kwds)
+        self._imported[mod.__name__] = mod
+        self._modules[mod.__name__] = mod
+        return mod
     
     def store_instance(self, name, value):
         ''' Add a name=value pair to the context instances '''
@@ -139,7 +175,7 @@ class ExecutionContext(object):
     
     def add_import_path(self, path):
         ''' An an import location to the context path '''
-        sys.path.append(path)
+        self._path.append(path)
     
     def store_symbol(self, name, value):
         ''' Add a name=value pair to the context symbols '''
