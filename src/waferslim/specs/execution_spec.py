@@ -8,8 +8,6 @@ from waferslim.execution import ExecutionContext, Results, Instructions, \
                                 instruction_for
 from waferslim.instructions import Make, Import, Call, CallAndAssign, \
                                    Instruction
-from waferslim.specs.spec_classes import ClassWithNoArgs, ClassWithOneArg, \
-                                         ClassWithTwoArgs
 
 class ExecutionContextBehaviour(object):
     ''' Related Specs for ExecutionContext behaviour '''
