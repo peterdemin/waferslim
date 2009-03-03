@@ -64,6 +64,7 @@ class ExecutionContextBehaviour(object):
             spec.then(spec.get_state()).should_contain(1)
             spec.then(instances[1].get_state).should_not_contain(1)
 
+    @lancelot.verifiable
     def handles_builtins(self):
         ''' get_type() should handle builtin types and get_module() should
         not affect sys.modules when module was already loaded, e.g. builtins'''

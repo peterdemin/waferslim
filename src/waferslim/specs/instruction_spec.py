@@ -60,6 +60,15 @@ lancelot.grouping(BaseInstructionBehaviour)
 def make_creates_instance():
     ''' Make.execute() should instantiate the class & add it to context '''
     package = 'waferslim.specs.spec_classes'
+    
+    # Case where no args are supplied
+    make = Make('id', ['instance', '%s.%s' % (package, 'ClassWithNoArgs')])
+    spec = lancelot.Spec(make)
+    execution_context = lancelot.MockSpec(name='execution_context')
+    results = lancelot.MockSpec(name='results')
+    spec.execute(execution_context, results).should_not_raise(Exception)
+    
+    # Cases where args are supplied
     classes = {ClassWithNoArgs:[],
                ClassWithOneArg:[1],
                ClassWithTwoArgs:['a', 'b']}
@@ -137,6 +146,17 @@ lancelot.grouping(MakeExceptionBehaviour)
 def call_invokes_method():
     ''' Call instruction should get an instance from context and execute a
     callable method on it, returning the results '''
+    # Case where no args are supplied
+    call = Call('id', ['instance', '__len__'])
+    spec = lancelot.Spec(call)
+    execution_context = lancelot.MockSpec(name='execution_context')
+    results = lancelot.MockSpec(name='results')
+    spec.execute(execution_context, results).should_collaborate_with(
+            execution_context.get_instance('instance').will_return('mint'),
+            results.completed(call, 4)
+        )
+
+    # Cases where args are supplied
     methods = {'method_0':[],
                'method_1':['1'],
                'method_2':['a', 'b']}

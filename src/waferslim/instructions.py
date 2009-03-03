@@ -58,7 +58,10 @@ class Make(Instruction):
             results.failed(self, cause)
             return
             
-        args = tuple(self._params[2])
+        try:
+            args = tuple(self._params[2])
+        except IndexError:
+            args = ()
         try:
             instance = target(*args)
             execution_context.store_instance(self._params[0], instance)
@@ -93,7 +96,10 @@ class Call(Instruction):
                                   type(instance).__name__)
             results.failed(self, cause)
             return (None, True)
-        args = self._make_args(execution_context, params[2])
+        try:
+            args = self._make_args(execution_context, params[2])
+        except IndexError:
+            args = ()
         result = target(*args)
         return (result, False)
     

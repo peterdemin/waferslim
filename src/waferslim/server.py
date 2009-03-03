@@ -85,10 +85,10 @@ if __name__ == '__main__':
                       metavar='HOST', default='localhost',
                       help='listen on inet address HOST')
     parser.add_option('-v', '--verbose', dest='verbose', 
-                      default=False,
+                      default=False, action='store_true',
                       help='log verbose messages at runtime')
     parser.add_option('-k', '--keep-alive', dest='keepalive', 
-                      default=False,
+                      default=False, action='store_true',
                       help='keep the server alive to service multiple requests')
     parser.add_option('-l', '--logging-conf', dest='logconf', 
                       metavar='CONFIGFILE', default='logging.conf', 
