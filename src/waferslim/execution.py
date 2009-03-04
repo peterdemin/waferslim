@@ -10,6 +10,7 @@ Copyright 2009 by the author(s). All rights reserved
 import __builtin__, logging, sys, threading
 from waferslim.instructions import Instruction, \
                                    Make, Call, CallAndAssign, Import
+from waferslim.converters import convert_value
 
 _OK = 'OK'
 _EXCEPTION = '__EXCEPTION__:'
@@ -28,10 +29,10 @@ class Results(object):
         ''' An instruction has completed, perhaps with a result '''
         if result == Results.NO_RESULT_EXPECTED:
             str_result = _OK
-        elif result:
-            str_result = str(result)
-        else:
+        elif result == None:
             str_result = _NONE_STRING
+        else:
+            str_result = convert_value(result)
         self._collected.append([instruction.instruction_id(), str_result])
         
     def failed(self, instruction, cause):

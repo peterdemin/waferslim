@@ -235,13 +235,16 @@ class ResultsBehaviour(object):
     def completed_with_result(self):
         ''' completed() for Call should add to results list. 
         Results list should be accessible through collection() '''
+        class Fake:
+            def __str__(self):
+                return 'Bon appetit'
         instruction = lancelot.MockSpec(name='instruction')
         result = lancelot.MockSpec(name='result')
         spec = lancelot.Spec(Results())
-        spec.completed(instruction, result=result).should_collaborate_with(
-            instruction.instruction_id().will_return('b')
+        spec.completed(instruction, result=Fake()).should_collaborate_with(
+            instruction.instruction_id().will_return('b'),
             )
-        spec.collection().should_be([['b', str(result)]])
+        spec.collection().should_be([['b', 'Bon appetit']])
         
     @lancelot.verifiable
     def completed_without_return_value(self):
