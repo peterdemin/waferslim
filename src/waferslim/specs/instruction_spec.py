@@ -196,7 +196,7 @@ class CallExceptionBehaviour(object):
     
     @lancelot.verifiable
     def handles_bad_instance(self):
-        ''' NoSuchInstanceException indicates bad instance name in Call ''' 
+        ''' NO_INSTANCE indicates bad instance name in Call ''' 
         execution_context = lancelot.MockSpec(name='execution_context')
         results = lancelot.MockSpec(name='results')
         params = ['bad_instance', 'method', 'args']
@@ -210,7 +210,7 @@ class CallExceptionBehaviour(object):
 
     @lancelot.verifiable
     def handles_bad_method(self):
-        ''' NoSuchMethodException indicates bad method name for Call target ''' 
+        ''' NO_METHOD_IN_CLASS indicates bad method name for Call target ''' 
         execution_context = lancelot.MockSpec(name='execution_context')
         results = lancelot.MockSpec(name='results')
         params = ['instance', 'bad_method', 'args']
