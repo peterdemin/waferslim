@@ -4,7 +4,8 @@ BDD-style Lancelot specifications for the behaviour of the core library classes
 
 from waferslim.converters import add_converter, convert_value, convert_arg, \
                                  Converter, BoolConverter, \
-                                 FromConstructorConverter
+                                 FromConstructorConverter, DateConverter, \
+                                 TimeConverter, DatetimeConverter
 import lancelot, datetime
 
 class Fake(object):
@@ -103,6 +104,38 @@ def from_constructor_conversion():
     spec.to_string(3.141).should_be('3.141')
     spec.from_string('3.141').should_be(3.141)
 
+@lancelot.verifiable
+def date_converter_behaviour():
+    ''' DateConverter should convert to/from datetime.date type using 
+    iso-standard format (4digityear-2digitmonth-2digitday)'''
+    spec = lancelot.Spec(DateConverter())
+    spec.to_string(datetime.date(2009,1,31)).should_be('2009-01-31')
+    spec.from_string('2009-01-31').should_be(datetime.date(2009,1,31))
+    
+@lancelot.verifiable
+def time_converter_behaviour():
+    ''' TimeConverter should convert to/from datetime.date type using
+    iso-standard format (2digithour:2digitminute:2digitsecond - with or without
+    an additional optional .6digitmillis)'''
+    spec = lancelot.Spec(TimeConverter())
+    spec.to_string(datetime.time(1,2,3)).should_be('01:02:03')
+    spec.to_string(datetime.time(1,2,3,4)).should_be('01:02:03.000004')
+    spec.from_string('01:02:03').should_be(datetime.time(1,2,3))
+    spec.from_string('01:02:03.000004').should_be(datetime.time(1,2,3,4))
+    
+@lancelot.verifiable
+def datetime_converter_behaviour():
+    ''' DatetimeConverter should convert to/from datetime.datetime type using
+    combination of iso-standard formats ("dateformat<space>timeformat")'''
+    spec = lancelot.Spec(DatetimeConverter())
+    date_part, time_part = '2009-02-28', '21:54:32.987654'
+    spec.to_string(datetime.datetime(2009,2,28,21,54,32,987654)).should_be(
+        '2009-02-28 21:54:32.987654')
+    spec.from_string('2009-02-28 21:54:32.987654').should_be(
+        datetime.datetime.combine(DateConverter().from_string(date_part),
+                                  TimeConverter().from_string(time_part))
+        )
+    
 class SomeSystemUnderTest(object):
     ''' Dummy class with a setter method that can be decorated '''
     def set_afloat(self, float_value):

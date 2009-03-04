@@ -18,7 +18,7 @@ Copyright 2009 by the author(s). All rights reserved
 
 import datetime
 
-__ALL_CONVERTERS = {} # The registered converters, keyed on type
+_ALL_CONVERTERS = {} # The registered converters, keyed on type
 
 class Converter(object):
     ''' Base class for converting to/from strings from/to python types'''
@@ -33,7 +33,7 @@ class Converter(object):
         raise NotImplementedError(msg)
 
 __DEFAULT_CONVERTER = Converter() # Use as default (when no type-specific 
-                                  # instance is present in __ALL_CONVERTERS)  
+                                  # instance is present in _ALL_CONVERTERS)  
 
 class BoolConverter(Converter):
     ''' Converter to/from bool type '''
@@ -56,13 +56,50 @@ class FromConstructorConverter(Converter):
     def from_string(self, value):
         ''' Delegate to the type(str) constructor to perform the conversion '''
         return self._type(value)
+    
+class DateConverter(Converter):
+    ''' Converter to/from datetime.date type via iso-standard format 
+    (4digityear-2digitmonth-2digitday, e.g. 2009-02-28) '''
+    def from_string(self, value):
+        iso_parts = [int(part) for part in value.split('-')]
+        return datetime.date(*tuple(iso_parts))
+
+class TimeConverter(Converter):
+    ''' Converter to/from datetime.date type via iso-standard format 
+    (2digithour:2digitminute:2digitsecond - with or without
+    an additional optional .6digitmillis, e.g. 01:02:03 or 01:02:03.456789).
+    Does not take any time-zone UTC offset into account!'''
+    def from_string(self, value):
+        iso_parts = [int(part) for part in self._timesplit(value)]
+        return datetime.time(*tuple(iso_parts))
+    
+    def _timesplit(self, value):
+        ''' split() value at both : and . characters per iso time format'''
+        dot_pos = value.rfind('.')
+        if dot_pos == -1:
+            return value.split(':')
+        else:
+            parts = self._timesplit(value[:dot_pos])
+            parts.append(value[dot_pos+1:])
+            return parts
+
+class DatetimeConverter(Converter):
+    ''' Converter to/from datetime.datetime type via iso-standard formats 
+    ("dateformat<space>timeformat", e.g. "2009-02-28 21:54:32.987654").
+    Delegates most of the actual work to DateConverter and TimeConverter. '''
+    def from_string(self, value):
+        # TODO: ?use datetime.datetime.strptime instead
+        date_part, time_part = value.split(' ')
+        the_date = _ALL_CONVERTERS[datetime.date].from_string(date_part)
+        the_time = _ALL_CONVERTERS[datetime.time].from_string(time_part)
+        return datetime.datetime.combine(the_date, the_time)
 
 def add_converter(for_type, converter_instance):
     ''' Register a converter_instance to be used with for_type instances.
     The converter must implement from_string() and to_string(). '''
     if hasattr(converter_instance, 'from_string') and \
     hasattr(converter_instance, 'to_string'):
-        __ALL_CONVERTERS[for_type] = converter_instance
+        _ALL_CONVERTERS[for_type] = converter_instance
         return
     msg = 'Converter for %s requires from_string() and to_string()' % for_type
     raise TypeError(msg)
@@ -71,9 +108,9 @@ def add_converter(for_type, converter_instance):
 add_converter(bool, BoolConverter())
 add_converter(int, FromConstructorConverter(int))
 add_converter(float, FromConstructorConverter(float))
-#                  datetime.date: DateConverter(),
-#                  datetime.time: TimeConverter(),
-#                  datetime.datetime: DatetimeConverter(),
+add_converter(datetime.date, DateConverter())
+add_converter(datetime.time, TimeConverter())
+add_converter(datetime.datetime, DatetimeConverter())
 
 def convert_arg(to_type):
     ''' Method decorator to convert a slim-standard string arg to a specific
@@ -81,7 +118,7 @@ def convert_arg(to_type):
     type-specific Converter added through this module.'''
     def conversion_decorator(fn):
         ''' callable that performs the actual decoration '''
-        converter = __ALL_CONVERTERS[to_type]
+        converter = _ALL_CONVERTERS[to_type]
         return lambda self, value: fn(self, converter.from_string(value))
     return conversion_decorator
 
@@ -90,6 +127,6 @@ def convert_value(value):
     Try to use a registered type-specific converter if one exists,
     otherwise use the default (base Converter).''' 
     try:
-        return __ALL_CONVERTERS[type(value)].to_string(value)
+        return _ALL_CONVERTERS[type(value)].to_string(value)
     except KeyError:
         return __DEFAULT_CONVERTER.to_string(value)
