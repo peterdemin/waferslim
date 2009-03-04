@@ -38,13 +38,20 @@ class Instruction(object):
         results.failed(self, '%s %s' % (_BAD_INSTRUCTION, self._params[0]))
 
 class Import(Instruction):
-    ''' An "import <path>" instruction '''
+    ''' An "import <path or module context>" instruction '''
     
     def execute(self, execution_context, results):
-        ''' Adds the imported path to the execution context '''
-        path = self._params[0]
-        execution_context.add_import_path(path)
+        ''' Adds an imported path or module context to the execution context'''
+        path_or_module = self._params[0]
+        if self._ispath(path_or_module):
+            execution_context.add_import_path(path_or_module)
+        else:
+            execution_context.add_type_prefix(path_or_module)
         results.completed(self)
+        
+    def _ispath(self, possible_path):
+        ''' True if this is a path, False otherwise '''
+        return possible_path.find('/') != -1 or possible_path.find('\\') != -1
 
 class Make(Instruction):
     ''' A "make <instance>, <class>, <args>..." instruction '''

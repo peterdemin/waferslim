@@ -99,10 +99,13 @@ class ExecutionContext(object):
     _SYSPATH = sys.path
     
     def __init__(self):
-        ''' Set up the isolated context ''' 
+        ''' Set up the isolated context '''
+        # Fitnesse-specific... 
         self._instances = {} 
         self._symbols = {} 
         self._path = []
+        self._type_prefixes = []
+        # Implementation-specific...
         self._imported = {}
         self._modules = {}
         self._modules.update(sys.modules)
@@ -111,8 +114,14 @@ class ExecutionContext(object):
         ''' Get a type instance from the context '''        
         dot_pos = fully_qualified_name.rfind('.')
         if dot_pos == -1:
-            msg = 'Type %s should be in a module' % fully_qualified_name
-            raise TypeError(msg)
+            for prefix in self._type_prefixes:
+                try:
+                    prefixed_name = '%s.%s' % (prefix, fully_qualified_name)
+                    return self.get_type(prefixed_name)
+                except (TypeError, ImportError):
+                    pass
+            msg = 'Type %s is not in a module: perhaps you want to Import it?'
+            raise TypeError(msg % fully_qualified_name)
 
         module_part = fully_qualified_name[:dot_pos]
         type_part = fully_qualified_name[dot_pos + 1:]
@@ -123,6 +132,11 @@ class ExecutionContext(object):
         except AttributeError:
             msg = '%s could not be found in %s' % (type_part, module_part)
             raise TypeError(msg)
+        
+    def add_type_prefix(self, prefix):
+        ''' Add a prefix that may be used to find classes without using long
+        fully-dot-qualified names'''
+        self._type_prefixes.append(prefix)
 
     def get_module(self, fully_qualified_name):
         ''' Monkey-patch builtin __import__ and sys.path to ensure isolation

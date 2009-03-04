@@ -227,13 +227,34 @@ class CallExceptionBehaviour(object):
         
 @lancelot.verifiable
 def import_adds_to_pythonpath():
-    ''' Import should add a path to the pythonpath '''
+    ''' Import should add a path to the pythonpath when a path is supplied '''
     execution_context = lancelot.MockSpec('execution_context')
     results = lancelot.MockSpec('results')
-    import_instruction = Import('id', ['some_path'])
+    import_instruction = Import('id', ['/some_path'])
     spec = lancelot.Spec(import_instruction)
     spec.execute(execution_context, results).should_collaborate_with(
-            execution_context.add_import_path('some_path'),
+            execution_context.add_import_path('/some_path'),
+            results.completed(import_instruction)
+        )
+    execution_context = lancelot.MockSpec('execution_context')
+    results = lancelot.MockSpec('results')
+    import_instruction = Import('id', ['c:\some_path'])
+    spec = lancelot.Spec(import_instruction)
+    spec.execute(execution_context, results).should_collaborate_with(
+            execution_context.add_import_path('c:\some_path'),
+            results.completed(import_instruction)
+        )
+
+@lancelot.verifiable
+def import_adds_to_type_context():
+    ''' Import should add a module / package to the type context 
+    when one is supplied '''
+    execution_context = lancelot.MockSpec('execution_context')
+    results = lancelot.MockSpec('results')
+    import_instruction = Import('id', ['some.module'])
+    spec = lancelot.Spec(import_instruction)
+    spec.execute(execution_context, results).should_collaborate_with(
+            execution_context.add_type_prefix('some.module'),
             results.completed(import_instruction)
         )
 

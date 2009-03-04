@@ -111,6 +111,19 @@ class ExecutionContextBehaviour(object):
         spec.then(spec.get_module('import_me')).should_not_raise(ImportError)
         
         lancelot.Spec(sys.path).it().should_not_contain(path)
+
+    @lancelot.verifiable
+    def uses_added_type_context(self):
+        ''' add_type_context() should allow classes to be found 
+        without fully-dot-qualified prefixes'''
+        ctx = ExecutionContext()
+        spec = lancelot.Spec(ctx)
+        spec.get_type('TestCase').should_raise(TypeError)
+        
+        spec.when(spec.add_type_prefix('unittest'))
+        spec.then(spec.get_type('TestCase')).should_not_raise(TypeError)
+        spec.then(spec.get_type('TestCase')).should_be(
+            ctx.get_type('unittest.TestCase'))
         
     @lancelot.verifiable
     def stores_symbol(self):
