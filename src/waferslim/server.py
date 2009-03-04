@@ -9,6 +9,7 @@ Copyright 2009 by the author(s). All rights reserved
 '''
 import logging, logging.config, SocketServer
 from optparse import OptionParser
+import os, sys
 from waferslim.protocol import RequestResponder
 
 _LOGGER_NAME = 'WaferSlimServer'
@@ -76,7 +77,8 @@ class WaferSlimServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
         while self._up: 
             self.handle_request()
 
-if __name__ == '__main__':
+def _get_options():
+    ''' Convenience method to parse command line args'''
     parser = OptionParser()
     parser.add_option('-p', '--port', dest='port', 
                       metavar='PORT', default=8989,
@@ -89,11 +91,29 @@ if __name__ == '__main__':
                       help='log verbose messages at runtime')
     parser.add_option('-k', '--keep-alive', dest='keepalive', 
                       default=False, action='store_true',
-                      help='keep the server alive to service multiple requests')
+                      help='keep the server alive - service multiple requests')
     parser.add_option('-l', '--logging-conf', dest='logconf', 
                       metavar='CONFIGFILE', default='logging.conf', 
                       help='get logging configuration from CONFIGFILE')
-    (options, args) = parser.parse_args()
+    parser.add_option('-s', '--sys-path', dest='syspath', 
+                      metavar='SYSPATH', default='', 
+                      help='add ,-separated entries from SYSPATH to sys.path')
+    return parser.parse_args()
 
-    logging.config.fileConfig(options.logconf)
+def start_server():
+    ''' Convenience method to start the server (used by __main__)'''
+    (options, args) = _get_options()
+    
+    if os.path.exists(options.logconf):
+        logging.config.fileConfig(options.logconf)
+    else:
+        logging.basicConfig()
+        logging.warning('No such logging config file: %s' % options.logconf)
+        
+    for element in options.syspath.split(','):
+        sys.path.append(element)
+    
     WaferSlimServer(options).serve_forever()
+
+if __name__ == '__main__':
+    start_server()
