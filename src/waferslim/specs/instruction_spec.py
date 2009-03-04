@@ -156,10 +156,20 @@ def call_invokes_method():
             results.completed(call, 4)
         )
 
-    # Cases where args are supplied
+    # Case where one arg is supplied
+    call = Call('id', ['instance', '__add__', 'thin'])
+    spec = lancelot.Spec(call)
+    execution_context = lancelot.MockSpec(name='execution_context')
+    results = lancelot.MockSpec(name='results')
+    spec.execute(execution_context, results).should_collaborate_with(
+            execution_context.get_instance('instance').will_return('wafer'),
+            results.completed(call, 'waferthin')
+        )
+
+    # Cases where args are supplied as list
     methods = {'method_0':[],
-               'method_1':['1'],
-               'method_2':['a', 'b']}
+               'method_1':['bucket'],
+               'method_2':['mr', 'creosote']}
     for target in methods.keys():
         instance = lancelot.MockSpec(name='instance')
         result = ','.join([str(arg) for arg in methods[target]])

@@ -112,9 +112,11 @@ class Call(Instruction):
     
     def _make_args(self, execution_context, args_list):
         ''' make a tuple of args from a list containing values and symbols'''
-        args_without_symbols = [self._nonsymbolic(execution_context, arg) \
-                                for arg in args_list]
-        return tuple(args_without_symbols)
+        if isinstance(args_list, list):
+            args_without_symbols = [self._nonsymbolic(execution_context, arg) \
+                                    for arg in args_list]
+            return tuple(args_without_symbols)
+        return (self._nonsymbolic(execution_context, args_list),)
     
     def _nonsymbolic(self, execution_context, possible_symbol):
         ''' perform any symbol substitution on a possible_symbol '''
