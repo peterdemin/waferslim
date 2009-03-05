@@ -25,6 +25,7 @@ class SlimRequestHandler(SocketServer.BaseRequestHandler, RequestResponder):
         from_addr = '%s:%s' % self.client_address
         self.info('Handling request from %s' % from_addr)
         
+        #TODO: exception handling
         received, sent = self.respond_to_request()
         
         done_msg = 'Done with %s: %s bytes received, %s bytes sent'
@@ -58,7 +59,7 @@ class WaferSlimServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
         prestart_msg = "Starting server with options: %s" % options
         logging.getLogger(_LOGGER_NAME).info(prestart_msg)
         
-        server_address = (options.host, int(options.port))
+        server_address = (options.inethost, int(options.port))
         SocketServer.TCPServer.__init__(self, 
                                         server_address, SlimRequestHandler)
         
@@ -66,7 +67,7 @@ class WaferSlimServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
         logging.getLogger(_LOGGER_NAME).info(start_msg)
         
     def done(self, request_handler):
-        ''' A request handler has completed: if keepalive=False then gracefully
+        ''' A request_handler has completed: if keepalive=False then gracefully
         shut down the server'''
         if not self._keepalive:
             logging.getLogger(_LOGGER_NAME).info('Shutting down')
@@ -83,19 +84,19 @@ def _get_options():
     parser.add_option('-p', '--port', dest='port', 
                       metavar='PORT', default=8989,
                       help='listen on port PORT')
-    parser.add_option('-i', '--inet-host', dest='host', 
+    parser.add_option('-i', '--inethost', dest='inethost', 
                       metavar='HOST', default='localhost',
                       help='listen on inet address HOST')
     parser.add_option('-v', '--verbose', dest='verbose', 
                       default=False, action='store_true',
                       help='log verbose messages at runtime')
-    parser.add_option('-k', '--keep-alive', dest='keepalive', 
+    parser.add_option('-k', '--keepalive', dest='keepalive', 
                       default=False, action='store_true',
                       help='keep the server alive - service multiple requests')
-    parser.add_option('-l', '--logging-conf', dest='logconf', 
+    parser.add_option('-l', '--logconf', dest='logconf', 
                       metavar='CONFIGFILE', default='logging.conf', 
                       help='get logging configuration from CONFIGFILE')
-    parser.add_option('-s', '--sys-path', dest='syspath', 
+    parser.add_option('-s', '--syspath', dest='syspath', 
                       metavar='SYSPATH', default='', 
                       help='add ,-separated entries from SYSPATH to sys.path')
     return parser.parse_args()
@@ -108,7 +109,7 @@ def start_server():
         logging.config.fileConfig(options.logconf)
     else:
         logging.basicConfig()
-        logging.warning('No such logging config file: %s' % options.logconf)
+        logging.warning('Invalid logging config file: %s' % options.logconf)
         
     for element in options.syspath.split(','):
         sys.path.append(element)
