@@ -3,7 +3,7 @@ BDD-style Lancelot specifications for the behaviour of the core library classes
 '''
 
 import lancelot
-from lancelot.comparators import Type
+from lancelot.comparators import Anything, Type
 from waferslim.instructions import Instruction, \
                                    Make, Import, Call, CallAndAssign
 from waferslim.specs.spec_classes import ClassWithNoArgs, ClassWithOneArg, \
@@ -68,10 +68,23 @@ def make_creates_instance():
     results = lancelot.MockSpec(name='results')
     spec.execute(execution_context, results).should_not_raise(Exception)
     
-    # Cases where args are supplied
+    # Case where args are supplied not as list
+    make = Make('id', ['instance', '%s.%s' % (package, 'ClassWithTwoArgs'),
+                       'arg1', 'arg2'])
+    spec = lancelot.Spec(make)
+    execution_context = lancelot.MockSpec(name='execution_context')
+    results = lancelot.MockSpec(name='results')
+    target = ClassWithTwoArgs
+    spec.execute(execution_context, results).should_collaborate_with(
+        execution_context.get_type(Anything()).will_return(target),
+        execution_context.store_instance('instance', Type(target)),
+        results.completed(make)
+    )
+    
+    # Cases where args are supplied as list
     classes = {ClassWithNoArgs:[],
-               ClassWithOneArg:[1],
-               ClassWithTwoArgs:['a', 'b']}
+               ClassWithOneArg:['bucket'],
+               ClassWithTwoArgs:['mr', 'creosote']}
     for target in classes.keys():
         name = target.__name__
         execution_context = lancelot.MockSpec(name='execution_context')
@@ -90,7 +103,7 @@ class MakeExceptionBehaviour(object):
 
     @lancelot.verifiable
     def handles_wrong_args(self):
-        ''' NoSuchConstructorException indicates incorrect constructor args '''
+        ''' incorrect num constructor args => COULD_NOT_INVOKE_CONSTRUCTOR'''
         wrong_params = ['creosote', 'FakeClass',
                         ['some unwanted', 'constructor args']
                        ]
@@ -108,7 +121,7 @@ class MakeExceptionBehaviour(object):
 
     @lancelot.verifiable
     def handles_bad_type(self):
-        ''' NoSuchClassException indicates unknown type '''
+        ''' unknown type => NO_CLASS '''
         wrong_params = ['creosote', 'FakeClass',
                         ['some unwanted', 'constructor args']
                        ]
@@ -125,7 +138,7 @@ class MakeExceptionBehaviour(object):
 
     @lancelot.verifiable
     def handles_bad_import(self):
-        ''' NoSuchClassException also indicates import problem '''
+        ''' import problem => NO_CLASS'''
         wrong_params = ['creosote', 'FakeClass',
                         ['some unwanted', 'constructor args']
                        ]
@@ -156,14 +169,16 @@ def call_invokes_method():
             results.completed(call, 4)
         )
 
-    # Case where one arg is supplied
-    call = Call('id', ['instance', '__add__', 'thin'])
+    # Case where args are supplied not as list
+    call = Call('id', ['instance', 'compound', 'thin', 'mint'])
     spec = lancelot.Spec(call)
     execution_context = lancelot.MockSpec(name='execution_context')
     results = lancelot.MockSpec(name='results')
+    instance = lancelot.MockSpec(name='instance')
     spec.execute(execution_context, results).should_collaborate_with(
-            execution_context.get_instance('instance').will_return('wafer'),
-            results.completed(call, 'waferthin')
+            execution_context.get_instance('instance').will_return(instance),
+            instance.compound('thin', 'mint').will_return('waferthin mint'),
+            results.completed(call, 'waferthin mint')
         )
 
     # Cases where args are supplied as list

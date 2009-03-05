@@ -52,8 +52,28 @@ class Import(Instruction):
     def _ispath(self, possible_path):
         ''' True if this is a path, False otherwise '''
         return possible_path.find('/') != -1 or possible_path.find('\\') != -1
+    
+class _InvokingInstruction(Instruction):
+    ''' Base class for Instruction-s that invoke a callable target '''
+    
+    _SYMBOL_PATTERN = re.compile('\\$([a-zA-Z]\\w*)', re.UNICODE)
 
-class Make(Instruction):
+    def _make_args(self, execution_context, args_list):
+        ''' make a tuple of args from a list containing values and symbols'''
+        if isinstance(args_list, list):
+            args_without_symbols = [self._nonsymbolic(execution_context, arg) \
+                                    for arg in args_list]
+            return tuple(args_without_symbols)
+        return (self._nonsymbolic(execution_context, args_list),)
+    
+    def _nonsymbolic(self, execution_context, possible_symbol):
+        ''' perform any symbol substitution on a possible_symbol '''
+        match = _InvokingInstruction._SYMBOL_PATTERN.match(possible_symbol)
+        if match:
+            return execution_context.get_symbol(match.groups()[0])
+        return possible_symbol
+
+class Make(_InvokingInstruction):
     ''' A "make <instance>, <class>, <args>..." instruction '''
     
     def execute(self, execution_context, results):
@@ -66,9 +86,14 @@ class Make(Instruction):
             return
             
         try:
-            args = tuple(self._params[2])
+            # TODO: Yuk! Refactor
+            if len(self._params) == 3:
+                args = self._make_args(execution_context, self._params[2])
+            else:
+                args = self._make_args(execution_context, self._params[2:])
         except IndexError:
             args = ()
+        
         try:
             instance = target(*args)
             execution_context.store_instance(self._params[0], instance)
@@ -78,9 +103,8 @@ class Make(Instruction):
                                   self._params[1], error.args[0])
             results.failed(self, cause)
 
-class Call(Instruction):
+class Call(_InvokingInstruction):
     ''' A "call <instance>, <function>, <args>..." instruction '''
-    _PATTERN = re.compile('\\$([a-zA-Z]\\w*)', re.UNICODE)
     
     def execute(self, execution_context, results):
         ''' Delegate to _invoke_call then record results on completion '''
@@ -96,6 +120,7 @@ class Call(Instruction):
         except KeyError:
             results.failed(self, '%s %s' % (_NO_INSTANCE, params[0]))
             return (None, True)
+        
         try:
             target = getattr(instance, params[1])
         except AttributeError:
@@ -103,27 +128,18 @@ class Call(Instruction):
                                   type(instance).__name__)
             results.failed(self, cause)
             return (None, True)
+        
         try:
-            args = self._make_args(execution_context, params[2])
+            # TODO: Yuk! Refactor
+            if len(params) == 3:
+                args = self._make_args(execution_context, params[2])
+            else:
+                args = self._make_args(execution_context, params[2:])
         except IndexError:
             args = ()
+        
         result = target(*args)
         return (result, False)
-    
-    def _make_args(self, execution_context, args_list):
-        ''' make a tuple of args from a list containing values and symbols'''
-        if isinstance(args_list, list):
-            args_without_symbols = [self._nonsymbolic(execution_context, arg) \
-                                    for arg in args_list]
-            return tuple(args_without_symbols)
-        return (self._nonsymbolic(execution_context, args_list),)
-    
-    def _nonsymbolic(self, execution_context, possible_symbol):
-        ''' perform any symbol substitution on a possible_symbol '''
-        match = Call._PATTERN.match(possible_symbol)
-        if match:
-            return execution_context.get_symbol(match.groups()[0])
-        return possible_symbol
 
 class CallAndAssign(Call):
     ''' A "callAndAssign <symbol>, <instance>, <function>, <args>..." 
