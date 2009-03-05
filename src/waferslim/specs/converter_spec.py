@@ -2,10 +2,9 @@
 BDD-style Lancelot specifications for the behaviour of the core library classes
 '''
 
-from waferslim.converters import add_converter, convert_value, convert_arg, \
-                                 Converter, BoolConverter, \
-                                 FromConstructorConverter, DateConverter, \
-                                 TimeConverter, DatetimeConverter
+from waferslim.converters import register_converter, convert_value, \
+    convert_arg, Converter, TrueFalseConverter, YesNoConverter, \
+    FromConstructorConverter, DateConverter, TimeConverter, DatetimeConverter
 import lancelot, datetime
 
 class Fake(object):
@@ -49,39 +48,56 @@ def convert_value_with_registered_converter():
             return self.str_value
     fake = Fake('I think I can only manage six crates today')
     converted_msg = 'I hope monsieur was not overdoing it last night'
-    add_converter(Fake, FakeConverter(converted_msg))
+    register_converter(Fake, FakeConverter(converted_msg))
     spec = lancelot.Spec(convert_value)
     spec.convert_value(fake).should_be(converted_msg)
     
 @lancelot.verifiable
-def add_converter_checks_attrs():
-    ''' add_converter() will not accept a converter_instance without
+def register_converter_checks_attrs():
+    ''' register_converter() will not accept a converter_instance without
     both to_string() and from_string() methods.'''
     converter = Fake("I'll have the lot")
     fake_method = lambda value: value
-    spec = lancelot.Spec(add_converter)
-    spec.add_converter(converter).should_raise(TypeError)
+    spec = lancelot.Spec(register_converter)
+    spec.register_converter(converter).should_raise(TypeError)
 
     converter.to_string = fake_method
-    spec.add_converter(Fake, converter).should_raise(TypeError)
+    spec.register_converter(Fake, converter).should_raise(TypeError)
 
     del(converter.to_string)
     converter.from_string = fake_method
-    spec.add_converter(Fake, converter).should_raise(TypeError)
+    spec.register_converter(Fake, converter).should_raise(TypeError)
 
     converter.to_string = fake_method
     converter.from_string = fake_method
-    spec.add_converter(Fake, converter).should_not_raise(TypeError)
+    spec.register_converter(Fake, converter).should_not_raise(TypeError)
     
 @lancelot.verifiable
-def bool_converter_behaviour():
-    ''' BoolConverter to_string() should be yes/no; from_string should be
-    True for any mixed case equivalent to yes or true; False otherwise. '''
-    spec = lancelot.Spec(BoolConverter())
+def yesno_converter_behaviour():
+    ''' YesNoConverter to_string() should be yes/no; from_string() should be
+    True for any mixed case equivalent to yes; False otherwise. '''
+    spec = lancelot.Spec(YesNoConverter())
     spec.to_string(True).should_be('yes')
     spec.to_string(False).should_be('no')
     spec.from_string('yes').should_be(True)
     spec.from_string('Yes').should_be(True)
+    spec.from_string('True').should_be(False)
+    spec.from_string('true').should_be(False)
+    spec.from_string('no').should_be(False)
+    spec.from_string('No').should_be(False)
+    spec.from_string('false').should_be(False)
+    spec.from_string('False').should_be(False)
+    spec.from_string('jugged hare').should_be(False)
+    
+@lancelot.verifiable
+def truefalse_converter_behaviour():
+    ''' TrueFalseConverter to_string() should be true/false; from_string()  
+    should be True for any mixed case equivalent to true; False otherwise. '''
+    spec = lancelot.Spec(TrueFalseConverter())
+    spec.to_string(True).should_be('true')
+    spec.to_string(False).should_be('false')
+    spec.from_string('yes').should_be(False)
+    spec.from_string('Yes').should_be(False)
     spec.from_string('True').should_be(True)
     spec.from_string('true').should_be(True)
     spec.from_string('no').should_be(False)
@@ -89,7 +105,7 @@ def bool_converter_behaviour():
     spec.from_string('false').should_be(False)
     spec.from_string('False').should_be(False)
     spec.from_string('jugged hare').should_be(False)
-    
+
 @lancelot.verifiable
 def from_constructor_conversion():
     ''' FromConstructorConverter converts using a type constructor, which
@@ -136,7 +152,7 @@ def datetime_converter_behaviour():
                                   TimeConverter().from_string(time_part))
         )
     
-class SomeSystemUnderTest(object):
+class ASystemUnderTest(object):
     ''' Dummy class with a setter method that can be decorated '''
     def set_afloat(self, float_value):
         ''' method to be decorated '''
@@ -145,31 +161,52 @@ class SomeSystemUnderTest(object):
 class ConvertArgBehaviour(object):
     ''' Group of related specs for convert_arg() behaviour.
     convert_arg() is a function decorator that should convert the single 
-    arg supplied to the fuction into the required python type'''
-            
+    arg supplied to the function into the required python type'''
+
     @lancelot.verifiable
-    def returns_callable(self):
-        ''' decorator should return a callable which takes 2 args.
+    def returns_callable_to_type(self):
+        ''' decorator for 'to_type' should return a callable that takes 2 args.
         Invoking that callable should convert the type of the 2nd arg.'''
-        decorated_fn = convert_arg(float)(SomeSystemUnderTest.set_afloat)
+        decorated_fn = convert_arg(to_type=float)(ASystemUnderTest.set_afloat)
         
         spec = lancelot.Spec(decorated_fn)
         spec.__call__('1.99').should_raise(TypeError) # only 1 arg
         
-        sut = SomeSystemUnderTest()
+        sut = ASystemUnderTest()
+        spec.__call__(sut, '1.99').should_not_raise(TypeError)
+        
+        spec.when(spec.__call__(sut, '2.718282'))
+        spec.then(lambda: sut.float_value).should_be(2.718282)
+
+    @lancelot.verifiable
+    def returns_callable_using(self):
+        ''' decorator for 'using' should return a callable that takes 2 args.
+        Invoking that callable should convert the type of the 2nd arg.'''
+        # Ensure that type-standard converter is not used!
+        register_converter(float, Converter())
+        
+        cnvt = FromConstructorConverter(float)
+        decorated_fn = convert_arg(using=cnvt)(ASystemUnderTest.set_afloat)
+        
+        spec = lancelot.Spec(decorated_fn)
+        spec.__call__('1.99').should_raise(TypeError) # only 1 arg
+        
+        sut = ASystemUnderTest()
         spec.__call__(sut, '1.99').should_not_raise(TypeError)
         
         spec.when(spec.__call__(sut, '2.718282'))
         spec.then(lambda: sut.float_value).should_be(2.718282)
         
+        # Reset type-standard converter
+        register_converter(float, FromConstructorConverter(float))
+                
     @lancelot.verifiable
     def fails_without_type_converter(self):
         ''' decorator should fail for to_type without a registered converter'''
-        spec = lancelot.Spec(convert_arg(to_type=SomeSystemUnderTest))
+        spec = lancelot.Spec(convert_arg(to_type=ASystemUnderTest))
         spec.__call__(lambda: None).should_raise(KeyError)
-        
+
 lancelot.grouping(ConvertArgBehaviour)
 
 if __name__ == '__main__':
     lancelot.verify()
-

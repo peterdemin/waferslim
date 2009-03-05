@@ -35,17 +35,29 @@ class Converter(object):
 __DEFAULT_CONVERTER = Converter() # Use as default (when no type-specific 
                                   # instance is present in _ALL_CONVERTERS)  
 
-class BoolConverter(Converter):
-    ''' Converter to/from bool type '''
+class TrueFalseConverter(Converter):
+    ''' Converter to/from bool type using true/false. This is the standard.'''
     
     def from_string(self, value):
-        ''' yes/Yes or true/True are bool True; anything else is False '''
-        return value.lower() in ['yes', 'true']
+        ''' true/True are bool True; anything else is False '''
+        return value.lower() == 'true'
+    
+    def to_string(self, value):
+        ''' "true" if value==bool True; "false" otherwise '''
+        return value==True and 'true' or 'false'
+
+class YesNoConverter(Converter):
+    ''' Converter to/from bool type using yes/no. Offered as an alternative
+    to TrueFalseConverter.'''
+    
+    def from_string(self, value):
+        ''' yes/Yes are bool True; anything else is False '''
+        return value.lower() == 'yes'
     
     def to_string(self, value):
         ''' "yes" if value==bool True; "no" otherwise '''
         return value==True and 'yes' or 'no'
-
+    
 class FromConstructorConverter(Converter):
     ''' Converter for types that implement __new__(str) e.g. int and float '''
     
@@ -94,7 +106,7 @@ class DatetimeConverter(Converter):
         the_time = _ALL_CONVERTERS[datetime.time].from_string(time_part)
         return datetime.datetime.combine(the_date, the_time)
 
-def add_converter(for_type, converter_instance):
+def register_converter(for_type, converter_instance):
     ''' Register a converter_instance to be used with for_type instances.
     The converter must implement from_string() and to_string(). '''
     if hasattr(converter_instance, 'from_string') and \
@@ -105,20 +117,26 @@ def add_converter(for_type, converter_instance):
     raise TypeError(msg)
 
 # Register the standard converters for bool, int, float and datetime types
-add_converter(bool, BoolConverter())
-add_converter(int, FromConstructorConverter(int))
-add_converter(float, FromConstructorConverter(float))
-add_converter(datetime.date, DateConverter())
-add_converter(datetime.time, TimeConverter())
-add_converter(datetime.datetime, DatetimeConverter())
+register_converter(bool, TrueFalseConverter())
+register_converter(int, FromConstructorConverter(int))
+register_converter(float, FromConstructorConverter(float))
+register_converter(datetime.date, DateConverter())
+register_converter(datetime.time, TimeConverter())
+register_converter(datetime.datetime, DatetimeConverter())
 
-def convert_arg(to_type):
+def convert_arg(to_type=None, using=None):
     ''' Method decorator to convert a slim-standard string arg to a specific
-    python datatype "to_type". Delegates to from_string() method on a 
-    type-specific Converter added through this module.'''
+    python datatype. Only 1 of "to_type" or "using" should be supplied. 
+    If "to_type" is supplied then a type-specific Converter is found from
+    those added through this module. If "using" is supplied then the arg
+    is taken as the converter to be used - however this converter will not
+    be used subsequently (as it would have been if add_converter()
+    had been called.) '''
+    if not (to_type or using):
+        raise TypeError('One of "to_type" or "using" must be supplied')
     def conversion_decorator(fn):
         ''' callable that performs the actual decoration '''
-        converter = _ALL_CONVERTERS[to_type]
+        converter = using and using or _ALL_CONVERTERS[to_type]
         return lambda self, value: fn(self, converter.from_string(value))
     return conversion_decorator
 
