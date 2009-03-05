@@ -32,14 +32,14 @@ class LoginDialogDriver:
         return False
     
     def loginMessage(self):
-        ''' Expose the internals of the sut to check any generated message.
+        ''' Expose the internals of the sut to check the login message.
         Note: no conversion-related decoration of this method is required 
         because there are no params and the return value is already a str'''
         return self._message
 
     def numberOfLoginAttempts(self):
-        ''' Expose the internals of the sut to check any generated message.
+        ''' Expose the internals of the sut to check number of login attempts.
         Note: no conversion-related decoration of this method is required 
         because there are no params and the numeric return value is 
-        implicitly converted by waferslim'''
+        implicitly converted by a standard registered converter'''
         return self._login_attempts 
