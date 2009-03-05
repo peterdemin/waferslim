@@ -28,14 +28,13 @@ class PackBehaviour(object):
         spec = lancelot.Spec(pack)
         for unpacked, packed in SAMPLE_DATA:
             spec.pack(unpacked).should_be(packed)
-            
+    
     @lancelot.verifiable
-    def pack_non_strings(self):
-        ''' Use str() co-ercion for encoding non-string values, except for
-        None which encodes as "null" ''' 
+    def cant_pack_non_strings(self):
+        ''' Non string values should be rejected, as packed items have
+        already been str-ified via the Results() collecting parameter ''' 
         spec = lancelot.Spec(pack)
-        spec.pack([1]).should_be('[000001:000001:1:]')
-        spec.pack([None]).should_be('[000001:000004:null:]') #TODO: check this?!
+        spec.pack([1]).should_raise(TypeError)
 
 lancelot.grouping(PackBehaviour)
 

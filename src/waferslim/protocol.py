@@ -100,9 +100,10 @@ def _pack_item(item):
     [iiiiii:llllll:item...]'''
     if isinstance(item, list):
         return _pack_item(pack(item))
-    
-    str_item = item and str(item) or 'null'
-    return _ITEM_ENCODING % (len(str_item), _SEPARATOR, str_item)
+    if isinstance(item, str) or \
+    isinstance(item, unicode):
+        return _ITEM_ENCODING % (len(item), _SEPARATOR, item)
+    raise TypeError('%r is not a string')
             
 class RequestResponder(object):
     ''' Mixin class for responding to Slim requests.
