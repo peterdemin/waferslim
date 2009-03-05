@@ -8,7 +8,7 @@ from waferslim.converters import convert_arg, register_converter, \
 # but we've chosen to use bool / YesNoConverter for table readability.
 register_converter(bool, YesNoConverter())
 
-class ShouldIBuyMilk:
+class ShouldIBuyMilk(object):
     ''' Class to be the system-under-test in fitnesse. '''
     
     def __init__(self):

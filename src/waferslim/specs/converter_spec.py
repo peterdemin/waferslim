@@ -4,7 +4,8 @@ BDD-style Lancelot specifications for the behaviour of the core library classes
 
 from waferslim.converters import register_converter, convert_value, \
     convert_arg, Converter, TrueFalseConverter, YesNoConverter, \
-    FromConstructorConverter, DateConverter, TimeConverter, DatetimeConverter
+    FromConstructorConverter, DateConverter, TimeConverter, \
+    DatetimeConverter, ListConverter
 import lancelot, datetime
 
 class Fake(object):
@@ -151,6 +152,21 @@ def datetime_converter_behaviour():
         datetime.datetime.combine(DateConverter().from_string(date_part),
                                   TimeConverter().from_string(time_part))
         )
+
+class ListConverterBehaviour(object):
+    ''' Group of related specs for conversion of lists '''
+    
+    @lancelot.verifiable
+    def to_string_converts_each_item(self):
+        ''' to_string() should convert each item using a type-specific 
+        converter for that item'''
+        a_list = [1, datetime.date(2009,5, 5), True]
+        list_of_lists = [[1, 2], [True, False]]
+        spec = lancelot.Spec(ListConverter())
+        spec.to_string(a_list).should_be(['1', '2009-05-05', 'true'])
+        spec.to_string(list_of_lists).should_be([['1', '2'], ['true', 'false']])
+
+lancelot.grouping(ListConverterBehaviour)
     
 class ASystemUnderTest(object):
     ''' Dummy class with a setter method that can be decorated '''

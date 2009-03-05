@@ -7,7 +7,7 @@ from waferslim.converters import convert_arg, register_converter, \
 # At present, script tables require TrueFalseConverter 
 register_converter(bool, TrueFalseConverter())
 
-class LoginDialogDriver:
+class LoginDialogDriver(object):
     ''' Class to be the system-under-test in fitnesse. '''
     
     def __init__(self, user_name, password):

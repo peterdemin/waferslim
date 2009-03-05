@@ -18,6 +18,7 @@ Copyright 2009 by the author(s). All rights reserved
 
 import datetime
 
+# TODO: registration via ExecutionContext
 _ALL_CONVERTERS = {} # The registered converters, keyed on type
 
 class Converter(object):
@@ -72,7 +73,9 @@ class FromConstructorConverter(Converter):
 class DateConverter(Converter):
     ''' Converter to/from datetime.date type via iso-standard format 
     (4digityear-2digitmonth-2digitday, e.g. 2009-02-28) '''
+    
     def from_string(self, value):
+        ''' Generate datetime.date from iso-standard format str '''
         iso_parts = [int(part) for part in value.split('-')]
         return datetime.date(*tuple(iso_parts))
 
@@ -81,7 +84,9 @@ class TimeConverter(Converter):
     (2digithour:2digitminute:2digitsecond - with or without
     an additional optional .6digitmillis, e.g. 01:02:03 or 01:02:03.456789).
     Does not take any time-zone UTC offset into account!'''
+    
     def from_string(self, value):
+        ''' Generate datetime.time from iso-standard format str '''
         iso_parts = [int(part) for part in self._timesplit(value)]
         return datetime.time(*tuple(iso_parts))
     
@@ -99,12 +104,24 @@ class DatetimeConverter(Converter):
     ''' Converter to/from datetime.datetime type via iso-standard formats 
     ("dateformat<space>timeformat", e.g. "2009-02-28 21:54:32.987654").
     Delegates most of the actual work to DateConverter and TimeConverter. '''
+
     def from_string(self, value):
+        ''' Generate a datetime.datetime from a str '''
         # TODO: ?use datetime.datetime.strptime instead
         date_part, time_part = value.split(' ')
         the_date = _ALL_CONVERTERS[datetime.date].from_string(date_part)
         the_time = _ALL_CONVERTERS[datetime.time].from_string(time_part)
         return datetime.datetime.combine(the_date, the_time)
+
+class ListConverter(Converter):
+    ''' Converter to/from list type. Delegates most of its work to 
+    type-specific converters for each item in the list.'''
+    
+    def to_string(self, values):
+        ''' Generate a list of str values from a list of typed values.
+        Note the slightly misleading name of this method: it actually returns
+        a list (of str) rather than an actual str...'''
+        return [convert_value(value) for value in values]
 
 def register_converter(for_type, converter_instance):
     ''' Register a converter_instance to be used with for_type instances.
@@ -123,7 +140,9 @@ register_converter(float, FromConstructorConverter(float))
 register_converter(datetime.date, DateConverter())
 register_converter(datetime.time, TimeConverter())
 register_converter(datetime.datetime, DatetimeConverter())
+register_converter(list, ListConverter())
 
+#TODO: converting multiple args ! :-(
 def convert_arg(to_type=None, using=None):
     ''' Method decorator to convert a slim-standard string arg to a specific
     python datatype. Only 1 of "to_type" or "using" should be supplied. 
