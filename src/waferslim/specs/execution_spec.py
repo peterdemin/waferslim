@@ -2,7 +2,7 @@
 BDD-style Lancelot specifications for the behaviour of the core library classes
 '''
 
-import lancelot, os, sys, types
+import lancelot, logging, os, sys, types
 from lancelot.comparators import Type, SameAs
 from waferslim.execution import ExecutionContext, Results, Instructions, \
                                 instruction_for
@@ -196,11 +196,20 @@ class InstructionsBehaviour(object):
         spec = lancelot.Spec(instructions)
         ctx = ExecutionContext()
         msg = "I couldn't eat another thing. I'm absolutely stuffed."
-        spec.execute(ctx, results).should_collaborate_with(
+        
+        # Suppress warning log message that we know will be generated
+        logger = logging.getLogger('Instructions')
+        log_level = logger.getEffectiveLevel()
+        logger.setLevel(logging.ERROR)
+        try:
+            spec.execute(ctx, results).should_collaborate_with(
                 mock_fn.instruction_for(a_list[0]).will_return(mock_call),
                 mock_call.execute(ctx, results).will_raise(Exception(msg)),
                 results.failed(mock_call, msg)
             )
+        finally:
+            # Put logger back to how it was
+            logger.setLevel(log_level)
 
 lancelot.grouping(InstructionsBehaviour)
 

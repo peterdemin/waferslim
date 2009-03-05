@@ -85,6 +85,7 @@ class Instructions(object):
             try:
                 instruction.execute(execution_context, results)
             except Exception, error:
+                self._logger.warn('Error executing %s: %r', instruction, error)
                 results.failed(instruction, error.args[0])
     
     def _debug(self, instruction):
