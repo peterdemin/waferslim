@@ -120,10 +120,9 @@ class RequestResponder(object):
         - receiving a 'bye' message will terminate the loop 
         '''
         ack_bytes = self._send_ack(self.request)
-        
         received, sent = self._message_loop(instructions,
                                             execution_context(),
-                                            results())
+                                            results)
         
         return received, sent + ack_bytes
     
@@ -133,7 +132,7 @@ class RequestResponder(object):
         self.debug('Send Ack')
         return request.send(response)
     
-    def _message_loop(self, instructions, execution_context, results):
+    def _message_loop(self, instructions, execution_context, new_result):
         ''' Receive messages from the request and send responses.
         Each message starts with a numeric header (number of digits defined
         in _NUMERIC_LENGTH) which contains the byte length
@@ -143,20 +142,27 @@ class RequestResponder(object):
         
         while True:
             message_length, bytes_received = self._get_message_length()
+            self.debug('Next message %s bytes' % message_length)
             received += bytes_received
-            data = self.request.recv(message_length).decode(_BYTE_ENCODING)
-            self.debug('Recv message: %r' % data)
+            
+            message = self._get_message(message_length)
             received += message_length
             
-            if _DISCONNECT == data:
+            if _DISCONNECT == message:
                 break
-            else:
-                instruction_list = instructions(unpack(data))
-                instruction_list.execute(execution_context, results)
-                response = pack(results.collection())
-                formatted_response = self._format_response(response)
-                sent += self.request.send(formatted_response)
-                self.debug('Send response: %r' % response)
+
+            result = new_result()
+            try:
+                instruction_list = instructions(unpack(message))
+                instruction_list.execute(execution_context, result)
+            except UnpackingError, error:
+                self.instruction_id = lambda: '0'
+                result.failed(self, 'MALFORMED_INSTRUCTION %s' % error.args[0])
+            
+            results = result.collection()
+            self.debug('Results: %r' % results)
+            formatted_response = self._format_response(pack(results))
+            sent += self.request.send(formatted_response)
         
         return received, sent
     
@@ -167,6 +173,16 @@ class RequestResponder(object):
         data = self.request.recv(byte_size).decode(_BYTE_ENCODING)
         length = int(data[0:_NUMERIC_LENGTH])
         return length, byte_size
+    
+    def _get_message(self, message_length):
+        ''' Receive a message of a known length in parts''' 
+        message, remaining = '', message_length
+        while remaining:
+            data = self.request.recv(min(1024, remaining))
+            self.debug('Recv %s bytes...' % len(data))
+            message += data
+            remaining = message_length - len(message)
+        return message.decode(_BYTE_ENCODING)
     
     def _format_response(self, msg):
         ''' Encode the bytes and add the length in an initial numeric header'''

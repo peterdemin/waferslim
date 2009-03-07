@@ -3,7 +3,7 @@ BDD-style Lancelot specifications for the behaviour of the core library classes
 '''
 
 import lancelot
-from lancelot.comparators import Type
+from lancelot.comparators import Type, Anything
 from waferslim.protocol import pack, unpack, UnpackingError, RequestResponder
 from waferslim.execution import ExecutionContext, Results
 
@@ -110,6 +110,28 @@ def request_responder_behaviour():
         request.recv(7).will_return('000003:'.encode('utf-8')),
         request.recv(3).will_return('bye'.encode('utf-8')),
         and_result=(7+9+7+9+7+3, 2+4+8))
+    
+@lancelot.verifiable
+def responder_handles_errors():
+    ''' RequestResponder should handle UnpackingError-s gracefully'''
+    request = lancelot.MockSpec(name='request')
+    instructions = lancelot.MockSpec(name='instructions')
+    request_responder = RequestResponder()
+    request_responder.request = request
+    spec = lancelot.Spec(request_responder)
+    spec.respond_to_request(instructions=lambda data: instructions)
+    unpacking_error = '000096:[000001:000079:[000002:000001:0:000053:' \
+        + '__EXCEPTION__: message:<<MALFORMED_INSTRUCTION mint>>:]:]'
+    spec.should_collaborate_with(
+        request.send('Slim -- V0.0\n'.encode('utf-8')).will_return(2),
+        request.recv(7).will_return('000009:'.encode('utf-8')),
+        request.recv(9).will_return('[000000:]'.encode('utf-8')),
+        instructions.execute(Anything(), 
+                             Anything()).will_raise(UnpackingError('mint')),
+        request.send(unpacking_error.encode('utf-8')).will_return(6),
+        request.recv(7).will_return('000003:'.encode('utf-8')),
+        request.recv(3).will_return('bye'.encode('utf-8')),
+        and_result=(7+9+7+3, 2+6))
 
 if __name__ == '__main__':
     lancelot.verify()
