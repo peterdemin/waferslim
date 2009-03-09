@@ -120,7 +120,8 @@ def responder_handles_errors():
     request_responder.request = request
     spec = lancelot.Spec(request_responder)
     spec.respond_to_request(instructions=lambda data: instructions)
-    unpacking_error = '000096:[000001:000079:[000002:000001:0:000053:' \
+    unpacking_error = '000109:[000001:000092:' \
+        + '[000002:000014:UnpackingError:000053:' \
         + '__EXCEPTION__: message:<<MALFORMED_INSTRUCTION mint>>:]:]'
     spec.should_collaborate_with(
         request.send('Slim -- V0.0\n'.encode('utf-8')).will_return(2),

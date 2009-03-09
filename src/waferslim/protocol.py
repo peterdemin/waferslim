@@ -11,11 +11,6 @@ Copyright 2009 by the author(s). All rights reserved
 from waferslim import WaferSlimException
 from waferslim.execution import Results, ExecutionContext, Instructions
 
-class UnpackingError(WaferSlimException):
-    ''' An attempt was made to unpack messages that do not conform 
-    to the protocol spec '''  
-    pass #TODO: MALFORMED_INSTRUCTION [instruction list]?
-
 _BYTE_ENCODING = 'utf-8'
 _VERSION = 'Slim -- V0.0\n'
 _START_CHUNK = '['
@@ -28,6 +23,18 @@ _NUMERIC_BLOCK_LENGTH = len((_NUMERIC_ENCODING % 0).encode(_BYTE_ENCODING)) \
     + _SEPARATOR_LENGTH
 _ITEM_ENCODING = _NUMERIC_ENCODING + '%s%s'
 _DISCONNECT = 'bye'
+
+class UnpackingError(WaferSlimException):
+    ''' An attempt was made to unpack messages that do not conform 
+    to the protocol spec '''  
+    
+    def instruction_id(self):
+        ''' Failure needs to be related to an instruction '''
+        return 'UnpackingError'
+            
+    def description(self):
+        ''' Describe this failure '''
+        return 'MALFORMED_INSTRUCTION %s' % self.args[0]
     
 def unpack(packed_string):
     ''' Unpack a chunked-up packed_string into a list '''
@@ -156,8 +163,7 @@ class RequestResponder(object):
                 instruction_list = instructions(unpack(message))
                 instruction_list.execute(execution_context, result)
             except UnpackingError, error:
-                self.instruction_id = lambda: '0'
-                result.failed(self, 'MALFORMED_INSTRUCTION %s' % error.args[0])
+                result.failed(error, error.description())
             
             results = result.collection()
             self.debug('Results: %r' % results)
@@ -175,7 +181,7 @@ class RequestResponder(object):
         return length, byte_size
     
     def _get_message(self, message_length):
-        ''' Receive a message of a known length in parts''' 
+        ''' Receive a message of a known length, in parts''' 
         message, remaining = '', message_length
         while remaining:
             data = self.request.recv(min(1024, remaining))

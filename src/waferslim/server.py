@@ -25,7 +25,6 @@ class SlimRequestHandler(SocketServer.BaseRequestHandler, RequestResponder):
         from_addr = '%s:%s' % self.client_address
         self.info('Handling request from %s' % from_addr)
         
-        #TODO: exception handling
         received, sent = self.respond_to_request()
         
         done_msg = 'Done with %s: %s bytes received, %s bytes sent'
