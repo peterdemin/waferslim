@@ -5,7 +5,7 @@ from waferslim.converters import convert_arg, Converter, convert_value, \
     register_converter
 import datetime
 
-class Employee:
+class Employee(object):
     ''' Simple example employee class with data but no behaviour (!) '''
     def __init__(self, emp_no, fname, lname, hiredate_tuple):
         self._emp_no = emp_no
@@ -33,7 +33,7 @@ class EmployeeConverter(Converter):
 # Don't forget to register the custom converter!
 register_converter(Employee, EmployeeConverter())
 
-class EmployeesHiredBefore:
+class EmployeesHiredBefore(object):
     ''' Class to be the system-under-test in fitnesse. '''
 
     @convert_arg(to_type=datetime.date)

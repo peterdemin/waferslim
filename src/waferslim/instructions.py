@@ -53,27 +53,7 @@ class Import(Instruction):
         ''' True if this is a path, False otherwise '''
         return possible_path.find('/') != -1 or possible_path.find('\\') != -1
     
-class _InvokingInstruction(Instruction):
-    ''' Base class for Instruction-s that invoke a callable target '''
-    
-    _SYMBOL_PATTERN = re.compile('\\$([a-zA-Z]\\w*)', re.UNICODE)
-
-    def _make_args(self, execution_context, args_list):
-        ''' make a tuple of args from a list containing values and symbols'''
-        if isinstance(args_list, list):
-            args_without_symbols = [self._nonsymbolic(execution_context, arg) \
-                                    for arg in args_list]
-            return tuple(args_without_symbols)
-        return (self._nonsymbolic(execution_context, args_list),)
-    
-    def _nonsymbolic(self, execution_context, possible_symbol):
-        ''' perform any symbol substitution on a possible_symbol '''
-        match = _InvokingInstruction._SYMBOL_PATTERN.match(possible_symbol)
-        if match:
-            return execution_context.get_symbol(match.groups()[0])
-        return possible_symbol
-
-class Make(_InvokingInstruction):
+class Make(Instruction):
     ''' A "make <instance>, <class>, <args>..." instruction '''
     
     def execute(self, execution_context, results):
@@ -85,15 +65,7 @@ class Make(_InvokingInstruction):
             results.failed(self, cause)
             return
             
-        try:
-            # TODO: Yuk! Refactor
-            if len(self._params) == 3:
-                args = self._make_args(execution_context, self._params[2])
-            else:
-                args = self._make_args(execution_context, self._params[2:])
-        except IndexError:
-            args = ()
-        
+        args = ParamsConverter(execution_context).to_args(self._params, 2)
         try:
             instance = target(*args)
             execution_context.store_instance(self._params[0], instance)
@@ -103,15 +75,14 @@ class Make(_InvokingInstruction):
                                   self._params[1], error.args[0])
             results.failed(self, cause)
 
-class Call(_InvokingInstruction):
+class Call(Instruction):
     ''' A "call <instance>, <function>, <args>..." instruction '''
     
     def execute(self, execution_context, results):
         ''' Delegate to _invoke_call then record results on completion '''
-        result, failed = self._invoke(execution_context, results, self._params)
-        if failed:
-            return
-        results.completed(self, result)
+        result, ok = self._invoke(execution_context, results, self._params)
+        if ok:
+            results.completed(self, result)
         
     def _invoke(self, execution_context, results, params):
         ''' Get an instance from the execution context and invoke a method'''
@@ -119,7 +90,7 @@ class Call(_InvokingInstruction):
             instance = execution_context.get_instance(params[0])
         except KeyError:
             results.failed(self, '%s %s' % (_NO_INSTANCE, params[0]))
-            return (None, True)
+            return (None, False)
         
         try:
             target = getattr(instance, params[1])
@@ -127,19 +98,11 @@ class Call(_InvokingInstruction):
             cause = '%s %s %s' % (_NO_METHOD, params[1], 
                                   type(instance).__name__)
             results.failed(self, cause)
-            return (None, True)
+            return (None, False)
         
-        try:
-            # TODO: Yuk! Refactor
-            if len(params) == 3:
-                args = self._make_args(execution_context, params[2])
-            else:
-                args = self._make_args(execution_context, params[2:])
-        except IndexError:
-            args = ()
-        
+        args = ParamsConverter(execution_context).to_args(params, 2)
         result = target(*args)
-        return (result, False)
+        return (result, True)
 
 class CallAndAssign(Call):
     ''' A "callAndAssign <symbol>, <instance>, <function>, <args>..." 
@@ -148,11 +111,37 @@ class CallAndAssign(Call):
     def execute(self, execution_context, results):
         ''' Delegate to _invoke_call then set variable and record results 
         on completion '''
-        params = []
-        params.extend(self._params)
-        symbol_name = params.pop(0)
-        result, failed = self._invoke(execution_context, results, params)
-        if failed:
-            return
-        execution_context.store_symbol(symbol_name, result)
-        results.completed(self, result)
+        params_copy = []
+        params_copy.extend(self._params)
+        symbol_name = params_copy.pop(0)
+        
+        result, ok = self._invoke(execution_context, results, params_copy)
+        if ok:
+            execution_context.store_symbol(symbol_name, result)
+            results.completed(self, result)
+        
+class ParamsConverter:
+    ''' Converter from (possibly nested) list of strings (possibly symbols)
+    into (possibly nested) tuple of string arguments for invocation''' 
+    
+    _SYMBOL_PATTERN = re.compile('\\$([a-zA-Z]\\w*)', re.UNICODE)
+    
+    def __init__(self, execution_context):
+        ''' Provide the execution_context for symbol lookup '''
+        self._execution_context = execution_context
+        
+    def to_args(self, params, from_position):
+        ''' Convert params[from_postition:] to args tuple ''' 
+        args = [self._lookup_symbol(param) for param in params[from_position:]]
+        return tuple(args)
+    
+    def _lookup_symbol(self, possible_symbol):
+        ''' Lookup (recursively if required) a possible symbol '''
+        if isinstance(possible_symbol, list):
+            return self.to_args(possible_symbol, 0)
+        
+        match = ParamsConverter._SYMBOL_PATTERN.match(possible_symbol)
+        if match:
+            return self._execution_context.get_symbol(match.groups()[0])
+        return possible_symbol
+    

@@ -4,7 +4,7 @@ BDD-style Lancelot specifications for the behaviour of the core library classes
 
 import lancelot
 from lancelot.comparators import Anything, Type
-from waferslim.instructions import Instruction, \
+from waferslim.instructions import Instruction, ParamsConverter, \
                                    Make, Import, Call, CallAndAssign
 from waferslim.specs.spec_classes import ClassWithNoArgs, ClassWithOneArg, \
                                          ClassWithTwoArgs
@@ -61,35 +61,15 @@ def make_creates_instance():
     ''' Make.execute() should instantiate the class & add it to context '''
     package = 'waferslim.specs.spec_classes'
     
-    # Case where no args are supplied
-    make = Make('id', ['instance', '%s.%s' % (package, 'ClassWithNoArgs')])
-    spec = lancelot.Spec(make)
-    execution_context = lancelot.MockSpec(name='execution_context')
-    results = lancelot.MockSpec(name='results')
-    spec.execute(execution_context, results).should_not_raise(Exception)
-    
-    # Case where args are supplied not as list
-    make = Make('id', ['instance', '%s.%s' % (package, 'ClassWithTwoArgs'),
-                       'arg1', 'arg2'])
-    spec = lancelot.Spec(make)
-    execution_context = lancelot.MockSpec(name='execution_context')
-    results = lancelot.MockSpec(name='results')
-    target = ClassWithTwoArgs
-    spec.execute(execution_context, results).should_collaborate_with(
-        execution_context.get_type(Anything()).will_return(target),
-        execution_context.store_instance('instance', Type(target)),
-        results.completed(make)
-    )
-    
-    # Cases where args are supplied as list
-    classes = {ClassWithNoArgs:[],
-               ClassWithOneArg:['bucket'],
-               ClassWithTwoArgs:['mr', 'creosote']}
-    for target in classes.keys():
+    classes = [ClassWithNoArgs, ClassWithOneArg, ClassWithTwoArgs]
+    args = [[], ['bucket'], ['mr', 'creosote']]
+    for i in range(0, 3):
+        target = classes[i]
         name = target.__name__
         execution_context = lancelot.MockSpec(name='execution_context')
         results = lancelot.MockSpec(name='results')
-        params = [name, '%s.%s' % (package, name), classes[target]]
+        params = [name, '%s.%s' % (package, name)]
+        params.extend(args[i])
         make_instruction = Make(name, params)
         spec = lancelot.Spec(make_instruction)
         spec.execute(execution_context, results).should_collaborate_with(
@@ -159,44 +139,23 @@ lancelot.grouping(MakeExceptionBehaviour)
 def call_invokes_method():
     ''' Call instruction should get an instance from context and execute a
     callable method on it, returning the results '''
-    # Case where no args are supplied
-    call = Call('id', ['instance', '__len__'])
-    spec = lancelot.Spec(call)
-    execution_context = lancelot.MockSpec(name='execution_context')
-    results = lancelot.MockSpec(name='results')
-    spec.execute(execution_context, results).should_collaborate_with(
-            execution_context.get_instance('instance').will_return('mint'),
-            results.completed(call, 4)
-        )
-
-    # Case where args are supplied not as list
-    call = Call('id', ['instance', 'compound', 'thin', 'mint'])
-    spec = lancelot.Spec(call)
-    execution_context = lancelot.MockSpec(name='execution_context')
-    results = lancelot.MockSpec(name='results')
-    instance = lancelot.MockSpec(name='instance')
-    spec.execute(execution_context, results).should_collaborate_with(
-            execution_context.get_instance('instance').will_return(instance),
-            instance.compound('thin', 'mint').will_return('waferthin mint'),
-            results.completed(call, 'waferthin mint')
-        )
-
-    # Cases where args are supplied as list
     methods = {'method_0':[],
                'method_1':['bucket'],
-               'method_2':['mr', 'creosote']}
+               'method_2':['mr', 'creosote'],
+               'method_3':[[['bring', 'me'], ['another', 'bucket']]]}
     for target in methods.keys():
         instance = lancelot.MockSpec(name='instance')
-        result = ','.join([str(arg) for arg in methods[target]])
         execution_context = lancelot.MockSpec(name='execution_context')
         results = lancelot.MockSpec(name='results')
-        params = ['instance', 'method', methods[target]]
-        call_instruction = Call('id_90', params)
+        params = ['instance', 'method']
+        params.extend(methods[target])
+        args = ParamsConverter(execution_context).to_args(params, 2)
+        call_instruction = Call('id', params)
         spec = lancelot.Spec(call_instruction)
         spec.execute(execution_context, results).should_collaborate_with(
             execution_context.get_instance(params[0]).will_return(instance),
-            instance.method(*tuple(params[2])).will_return(result),
-            results.completed(call_instruction, result)
+            instance.method(*args).will_return('something'),
+            results.completed(call_instruction, 'something')
             )
 
 @lancelot.verifiable
@@ -206,7 +165,7 @@ def call_substitutes_symbols():
     results = lancelot.MockSpec(name='results')
     instance = lancelot.MockSpec(name='instance')
     call_instruction = Call('with_symbol_substitution', 
-                            ['instance', 'method', ['$A', '$b_', 'C$']])
+                            ['instance', 'method', '$A', '$b_', 'C$'])
     spec = lancelot.Spec(call_instruction)
     spec.execute(execution_context, results).should_collaborate_with(
             execution_context.get_instance('instance').will_return(instance),
@@ -290,7 +249,7 @@ def call_and_assign_sets_variable():
     ''' CallAndAssign should assign a value to an execution context symbol '''
     execution_context = lancelot.MockSpec('execution_context')
     results = lancelot.MockSpec('results')
-    call_and_assign = CallAndAssign('id', ['symbol', 'list', '__len__', []])
+    call_and_assign = CallAndAssign('id', ['symbol', 'list', '__len__'])
     spec = lancelot.Spec(call_and_assign)
     spec.execute(execution_context, results).should_collaborate_with(
             execution_context.get_instance('list').will_return([]),
@@ -298,5 +257,37 @@ def call_and_assign_sets_variable():
             results.completed(call_and_assign, 0)
         )
 
+@lancelot.verifiable
+def params_converter_behaviour():
+    execution_context = lancelot.MockSpec('execution_context')
+    spec = lancelot.Spec(ParamsConverter(execution_context))
+    spec.to_args([], 0).should_be(())
+
+    execution_context = lancelot.MockSpec('execution_context')
+    spec = lancelot.Spec(ParamsConverter(execution_context))
+    spec.to_args(['mint'], 0).should_be(('mint',))
+
+    execution_context = lancelot.MockSpec('execution_context')
+    spec = lancelot.Spec(ParamsConverter(execution_context))
+    spec.to_args(['wafer', 'thin'], 0).should_be(('wafer', 'thin'))
+
+    execution_context = lancelot.MockSpec('execution_context')
+    spec = lancelot.Spec(ParamsConverter(execution_context))
+    spec.to_args(['wafer', 'thin'], 1).should_be(('thin', ))
+
+    execution_context = lancelot.MockSpec('execution_context')
+    spec = lancelot.Spec(ParamsConverter(execution_context))
+    spec.to_args(['$A', '$b_', 'C$'], 0).should_collaborate_with(
+        execution_context.get_symbol('A').will_return('X'),
+        execution_context.get_symbol('b_').will_return('Y'),
+        and_result=(('X', 'Y', 'C$'))
+        )
+    
+    execution_context = lancelot.MockSpec('execution_context')
+    spec = lancelot.Spec(ParamsConverter(execution_context))
+    spec.to_args([['bring', 'me'],['another', 'bucket']], 0).should_be(
+                 (('bring', 'me'),('another', 'bucket'))
+                )
+    
 if __name__ == '__main__':
     lancelot.verify()
