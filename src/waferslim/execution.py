@@ -7,7 +7,7 @@ The latest source code is available at http://code.launchpad.net/waferslim.
 
 Copyright 2009 by the author(s). All rights reserved 
 '''
-import __builtin__, logging, sys, threading
+import __builtin__, logging, re, sys, threading
 from waferslim.instructions import Instruction, \
                                    Make, Call, CallAndAssign, Import
 from waferslim.converters import convert_value
@@ -85,13 +85,39 @@ class Instructions(object):
             try:
                 instruction.execute(execution_context, results)
             except Exception, error:
-                self._logger.warn('Error executing %s: %r', instruction, error)
+                self._logger.warn('Error executing %s:', instruction, 
+                                  exc_info=1)
                 results.failed(instruction, error.args[0])
     
     def _debug(self, instruction):
         ''' Log a debug message about the execution of Instruction-s '''
         self._logger.debug('Executing %r' % instruction)
-     
+
+class ParamsConverter(object):
+    ''' Converter from (possibly nested) list of strings (possibly symbols)
+    into (possibly nested) tuple of string arguments for invocation''' 
+    
+    _SYMBOL_PATTERN = re.compile('\\$([a-zA-Z]\\w*)', re.UNICODE)
+    
+    def __init__(self, execution_context):
+        ''' Provide the execution_context for symbol lookup '''
+        self._execution_context = execution_context
+        
+    def to_args(self, params, from_position):
+        ''' Convert params[from_postition:] to args tuple ''' 
+        args = [self._lookup_symbol(param) for param in params[from_position:]]
+        return tuple(args)
+    
+    def _lookup_symbol(self, possible_symbol):
+        ''' Lookup (recursively if required) a possible symbol '''
+        if isinstance(possible_symbol, list):
+            return self.to_args(possible_symbol, 0)
+        
+        match = ParamsConverter._SYMBOL_PATTERN.match(possible_symbol)
+        if match:
+            return self._execution_context.get_symbol(match.groups()[0])
+        return possible_symbol
+   
 class ExecutionContext(object):
     ''' Contextual execution environment to allow simultaneous code executions
     to take place in isolation from each other.'''
@@ -100,13 +126,14 @@ class ExecutionContext(object):
     _REAL_IMPORT = __builtin__.__import__
     _SYSPATH = sys.path
     
-    def __init__(self):
+    def __init__(self, params_converter = ParamsConverter):
         ''' Set up the isolated context '''
         # Fitnesse-specific... 
         self._instances = {} 
         self._symbols = {} 
         self._path = []
         self._type_prefixes = []
+        self._params_converter = params_converter(self)
         # Implementation-specific...
         self._imported = {}
         self._modules = {}
@@ -206,3 +233,7 @@ class ExecutionContext(object):
     def get_symbol(self, name):
         ''' Get value from a name=value pair in the context symbols '''
         return self._symbols[name]
+    
+    def to_args(self, params, from_position):
+        ''' Delegate args construction to the ParamsConverter '''
+        return self._params_converter.to_args(params, from_position)

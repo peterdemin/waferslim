@@ -5,7 +5,6 @@ The latest source code is available at http://code.launchpad.net/waferslim.
 
 Copyright 2009 by the author(s). All rights reserved 
 '''
-import re
 
 _BAD_INSTRUCTION = 'INVALID_STATEMENT'
 _NO_CLASS = 'NO_CLASS'
@@ -65,7 +64,7 @@ class Make(Instruction):
             results.failed(self, cause)
             return
             
-        args = ParamsConverter(execution_context).to_args(self._params, 2)
+        args = execution_context.to_args(self._params, 2)
         try:
             instance = target(*args)
             execution_context.store_instance(self._params[0], instance)
@@ -100,7 +99,7 @@ class Call(Instruction):
             results.failed(self, cause)
             return (None, False)
         
-        args = ParamsConverter(execution_context).to_args(params, 2)
+        args = execution_context.to_args(params, 2)
         result = target(*args)
         return (result, True)
 
@@ -119,29 +118,3 @@ class CallAndAssign(Call):
         if ok:
             execution_context.store_symbol(symbol_name, result)
             results.completed(self, result)
-        
-class ParamsConverter:
-    ''' Converter from (possibly nested) list of strings (possibly symbols)
-    into (possibly nested) tuple of string arguments for invocation''' 
-    
-    _SYMBOL_PATTERN = re.compile('\\$([a-zA-Z]\\w*)', re.UNICODE)
-    
-    def __init__(self, execution_context):
-        ''' Provide the execution_context for symbol lookup '''
-        self._execution_context = execution_context
-        
-    def to_args(self, params, from_position):
-        ''' Convert params[from_postition:] to args tuple ''' 
-        args = [self._lookup_symbol(param) for param in params[from_position:]]
-        return tuple(args)
-    
-    def _lookup_symbol(self, possible_symbol):
-        ''' Lookup (recursively if required) a possible symbol '''
-        if isinstance(possible_symbol, list):
-            return self.to_args(possible_symbol, 0)
-        
-        match = ParamsConverter._SYMBOL_PATTERN.match(possible_symbol)
-        if match:
-            return self._execution_context.get_symbol(match.groups()[0])
-        return possible_symbol
-    

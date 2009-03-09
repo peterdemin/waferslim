@@ -5,7 +5,7 @@ BDD-style Lancelot specifications for the behaviour of the core library classes
 import lancelot, logging, os, sys, types
 from lancelot.comparators import Type, SameAs
 from waferslim.execution import ExecutionContext, Results, Instructions, \
-                                instruction_for
+                                instruction_for, ParamsConverter
 from waferslim.instructions import Make, Import, Call, CallAndAssign, \
                                    Instruction
 
@@ -267,6 +267,38 @@ class ResultsBehaviour(object):
         spec.collection().should_be([['c', '/__VOID__/']])
 
 lancelot.grouping(ResultsBehaviour)
+
+@lancelot.verifiable
+def params_converter_behaviour():
+    execution_context = lancelot.MockSpec('execution_context')
+    spec = lancelot.Spec(ParamsConverter(execution_context))
+    spec.to_args([], 0).should_be(())
+
+    execution_context = lancelot.MockSpec('execution_context')
+    spec = lancelot.Spec(ParamsConverter(execution_context))
+    spec.to_args(['mint'], 0).should_be(('mint',))
+
+    execution_context = lancelot.MockSpec('execution_context')
+    spec = lancelot.Spec(ParamsConverter(execution_context))
+    spec.to_args(['wafer', 'thin'], 0).should_be(('wafer', 'thin'))
+
+    execution_context = lancelot.MockSpec('execution_context')
+    spec = lancelot.Spec(ParamsConverter(execution_context))
+    spec.to_args(['wafer', 'thin'], 1).should_be(('thin', ))
+
+    execution_context = lancelot.MockSpec('execution_context')
+    spec = lancelot.Spec(ParamsConverter(execution_context))
+    spec.to_args(['$A', '$b_', 'C$'], 0).should_collaborate_with(
+        execution_context.get_symbol('A').will_return('X'),
+        execution_context.get_symbol('b_').will_return('Y'),
+        and_result=(('X', 'Y', 'C$'))
+        )
+    
+    execution_context = lancelot.MockSpec('execution_context')
+    spec = lancelot.Spec(ParamsConverter(execution_context))
+    spec.to_args([['bring', 'me'],['another', 'bucket']], 0).should_be(
+                 (('bring', 'me'),('another', 'bucket'))
+                )
 
 if __name__ == '__main__':
     lancelot.verify()

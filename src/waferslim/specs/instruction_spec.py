@@ -4,8 +4,9 @@ BDD-style Lancelot specifications for the behaviour of the core library classes
 
 import lancelot
 from lancelot.comparators import Anything, Type
-from waferslim.instructions import Instruction, ParamsConverter, \
+from waferslim.instructions import Instruction, \
                                    Make, Import, Call, CallAndAssign
+from waferslim.execution import ParamsConverter
 from waferslim.specs.spec_classes import ClassWithNoArgs, ClassWithOneArg, \
                                          ClassWithTwoArgs
 
@@ -62,18 +63,20 @@ def make_creates_instance():
     package = 'waferslim.specs.spec_classes'
     
     classes = [ClassWithNoArgs, ClassWithOneArg, ClassWithTwoArgs]
-    args = [[], ['bucket'], ['mr', 'creosote']]
+    arg_params = [[], ['bucket'], ['mr', 'creosote']]
     for i in range(0, 3):
         target = classes[i]
         name = target.__name__
         execution_context = lancelot.MockSpec(name='execution_context')
         results = lancelot.MockSpec(name='results')
         params = [name, '%s.%s' % (package, name)]
-        params.extend(args[i])
+        params.extend(arg_params[i])
+        args = ParamsConverter(execution_context).to_args(params, 2)
         make_instruction = Make(name, params)
         spec = lancelot.Spec(make_instruction)
         spec.execute(execution_context, results).should_collaborate_with(
             execution_context.get_type(params[1]).will_return(target),
+            execution_context.to_args(params, 2).will_return(args),
             execution_context.store_instance(name, Type(target)),
             results.completed(make_instruction)
         )
@@ -87,6 +90,7 @@ class MakeExceptionBehaviour(object):
         wrong_params = ['creosote', 'FakeClass',
                         ['some unwanted', 'constructor args']
                        ]
+        wrong_args = ('some unwanted', 'constructor args')
         cause = 'COULD_NOT_INVOKE_CONSTRUCTOR FakeClass ' \
                 + 'default __new__ takes no parameters'
         execution_context = lancelot.MockSpec(name='execution_context')
@@ -96,6 +100,7 @@ class MakeExceptionBehaviour(object):
         spec = lancelot.Spec(make_instruction)
         spec.execute(execution_context, results).should_collaborate_with(
             execution_context.get_type('FakeClass').will_return(a_class),
+            execution_context.to_args(wrong_params, 2).will_return(wrong_args),
             results.failed(make_instruction, cause)
         )
 
@@ -149,31 +154,14 @@ def call_invokes_method():
         results = lancelot.MockSpec(name='results')
         params = ['instance', 'method']
         params.extend(methods[target])
-        args = ParamsConverter(execution_context).to_args(params, 2)
         call_instruction = Call('id', params)
         spec = lancelot.Spec(call_instruction)
         spec.execute(execution_context, results).should_collaborate_with(
             execution_context.get_instance(params[0]).will_return(instance),
-            instance.method(*args).will_return('something'),
-            results.completed(call_instruction, 'something')
+            execution_context.to_args(params, 2).will_return(('life',)),
+            instance.method('life').will_return('meaning'),
+            results.completed(call_instruction, 'meaning')
             )
-
-@lancelot.verifiable
-def call_substitutes_symbols():
-    ''' Call instruction should perform variable substitution on its params '''
-    execution_context = lancelot.MockSpec(name='execution_context')
-    results = lancelot.MockSpec(name='results')
-    instance = lancelot.MockSpec(name='instance')
-    call_instruction = Call('with_symbol_substitution', 
-                            ['instance', 'method', '$A', '$b_', 'C$'])
-    spec = lancelot.Spec(call_instruction)
-    spec.execute(execution_context, results).should_collaborate_with(
-            execution_context.get_instance('instance').will_return(instance),
-            execution_context.get_symbol('A').will_return('X'),
-            execution_context.get_symbol('b_').will_return('Y'),
-            instance.method('X', 'Y', 'C$').will_return(42),
-            results.completed(call_instruction, 42)
-        )
 
 class CallExceptionBehaviour(object):
     ''' Exception-related Specs for Call-instruction behaviour '''
@@ -253,41 +241,10 @@ def call_and_assign_sets_variable():
     spec = lancelot.Spec(call_and_assign)
     spec.execute(execution_context, results).should_collaborate_with(
             execution_context.get_instance('list').will_return([]),
+            execution_context.to_args(['list', '__len__'], 2).will_return(()),
             execution_context.store_symbol('symbol', 0),
             results.completed(call_and_assign, 0)
         )
 
-@lancelot.verifiable
-def params_converter_behaviour():
-    execution_context = lancelot.MockSpec('execution_context')
-    spec = lancelot.Spec(ParamsConverter(execution_context))
-    spec.to_args([], 0).should_be(())
-
-    execution_context = lancelot.MockSpec('execution_context')
-    spec = lancelot.Spec(ParamsConverter(execution_context))
-    spec.to_args(['mint'], 0).should_be(('mint',))
-
-    execution_context = lancelot.MockSpec('execution_context')
-    spec = lancelot.Spec(ParamsConverter(execution_context))
-    spec.to_args(['wafer', 'thin'], 0).should_be(('wafer', 'thin'))
-
-    execution_context = lancelot.MockSpec('execution_context')
-    spec = lancelot.Spec(ParamsConverter(execution_context))
-    spec.to_args(['wafer', 'thin'], 1).should_be(('thin', ))
-
-    execution_context = lancelot.MockSpec('execution_context')
-    spec = lancelot.Spec(ParamsConverter(execution_context))
-    spec.to_args(['$A', '$b_', 'C$'], 0).should_collaborate_with(
-        execution_context.get_symbol('A').will_return('X'),
-        execution_context.get_symbol('b_').will_return('Y'),
-        and_result=(('X', 'Y', 'C$'))
-        )
-    
-    execution_context = lancelot.MockSpec('execution_context')
-    spec = lancelot.Spec(ParamsConverter(execution_context))
-    spec.to_args([['bring', 'me'],['another', 'bucket']], 0).should_be(
-                 (('bring', 'me'),('another', 'bucket'))
-                )
-    
 if __name__ == '__main__':
     lancelot.verify()
