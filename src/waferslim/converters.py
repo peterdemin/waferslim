@@ -113,19 +113,23 @@ class DatetimeConverter(Converter):
         the_time = _ALL_CONVERTERS[datetime.time].from_string(time_part)
         return datetime.datetime.combine(the_date, the_time)
 
-class ListConverter(Converter):
-    ''' Converter to/from list type. Delegates most of its work to 
-    type-specific converters for each item in the list.'''
+#TODO: ?from_string for table_table?
+class IterableConverter(Converter):
+    ''' Converter to/from an iterable type (e.g. list, tuple). 
+    Delegates to type-specific converters for each item in the list.'''
     
-    def to_string(self, values):
+    def to_string(self, iterable_values):
         ''' Generate a list of str values from a list of typed values.
         Note the slightly misleading name of this method: it actually returns
         a list (of str) rather than an actual str...'''
-        return [convert_value(value) for value in values]
+        return [convert_value(value) for value in iterable_values]
 
 def register_converter(for_type, converter_instance):
-    ''' Register a converter_instance to be used with for_type instances.
-    The converter must implement from_string() and to_string(). '''
+    ''' Register a converter_instance to be used with all for_type instances.
+    Registration is 'forever' (across all fitnesse tables run as a suite): the
+    decision_table example demonstrates how to use an alternative converter 
+    'temporarily' (for a single fitnesse table within a suite).  
+    A converter_instance must implement from_string() and to_string(). '''
     if hasattr(converter_instance, 'from_string') and \
     hasattr(converter_instance, 'to_string'):
         _ALL_CONVERTERS[for_type] = converter_instance
@@ -140,7 +144,8 @@ register_converter(float, FromConstructorConverter(float))
 register_converter(datetime.date, DateConverter())
 register_converter(datetime.time, TimeConverter())
 register_converter(datetime.datetime, DatetimeConverter())
-register_converter(list, ListConverter())
+register_converter(list, IterableConverter())
+register_converter(tuple, IterableConverter())
 
 #TODO: converting multiple args ! :-(
 def convert_arg(to_type=None, using=None):
@@ -148,9 +153,9 @@ def convert_arg(to_type=None, using=None):
     python datatype. Only 1 of "to_type" or "using" should be supplied. 
     If "to_type" is supplied then a type-specific Converter is found from
     those added through this module. If "using" is supplied then the arg
-    is taken as the converter to be used - however this converter will not
-    be used subsequently (as it would have been if add_converter()
-    had been called.) '''
+    is taken as the converter to be used - however this converter will only
+    be used 'temporarily' (not 'forever', as it would have been if 
+    register_converter() had been called.) '''
     if not (to_type or using):
         raise TypeError('One of "to_type" or "using" must be supplied')
     def conversion_decorator(fn):
@@ -159,7 +164,21 @@ def convert_arg(to_type=None, using=None):
         return lambda self, value: fn(self, converter.from_string(value))
     return conversion_decorator
 
-def convert_value(value):
+def convert_result(using=None):
+    ''' Method decorator to convert a method result from a python datatype 
+    using a specific converter. Ordinarily this decorator is not required
+    as result conversion is performed automatically using an appropriate
+    converter registered for the datatype of the result value. It is included
+    for specific conversion done 'temporarily' for a single fitnesse table 
+    within a suite '''
+    if not (using):
+        raise TypeError('"using" converter must be supplied')
+    def conversion_decorator(fn):
+        ''' callable that performs the actual decoration '''
+        return lambda self, *args: using.to_string(fn(self, *args))
+    return conversion_decorator
+
+def convert_value(value): #TODO: move me!!!
     ''' Convert from a typed value to a string value with to_string().
     Try to use a registered type-specific converter if one exists,
     otherwise use the default (base Converter).''' 

@@ -1,12 +1,12 @@
 ''' Example of a Slim DecisionTable -- 
 based on http://fitnesse.org/FitNesse.SliM.DecisionTable'''
 
-from waferslim.converters import convert_arg, register_converter, \
-                                 YesNoConverter
+from waferslim.converters import convert_arg, convert_result, YesNoConverter
 
 # Most conversion can be handled using the standard registered converters
-# but we've chosen to use bool / YesNoConverter for table readability.
-register_converter(bool, YesNoConverter())
+# but we're using (for better table readability) the bool YesNoConverter 
+# 'temporarily' here, ie for only this table within the suite.
+yesno_converter = YesNoConverter()
 
 class ShouldIBuyMilk(object):
     ''' Class to be the system-under-test in fitnesse. '''
@@ -24,10 +24,10 @@ class ShouldIBuyMilk(object):
         translate from a standard slim string value to an int. '''
         self._cash = int_amount
         
-    @convert_arg(to_type=bool)
+    @convert_arg(using=yesno_converter)
     def setCreditCard(self, bool_value):
         ''' Decorated method to set credit as a bool.
-        The decorator uses the explicitly registered bool converter to 
+        The decorator uses an explicitl bool converter to 
         translate from a standard slim string value. '''
         self._credit = bool_value
         
@@ -38,10 +38,11 @@ class ShouldIBuyMilk(object):
         translate from a standard slim string value to an int. '''
         self._pints = int_amount
     
+    @convert_result(using=yesno_converter)
     def goToStore(self):
         ''' Return whether I should go to the store or not.
         The bool return value will be converted to a str with the
-        YesNoConverter we explicitly registered. For examples of
+        YesNoConverter we explicitly supplied. For examples of
         methods with return values that are not decorated,
         because the conversion is done implicitly, see script_table).'''
         return self._pints == 0 and (self._credit or self._cash > 2)
@@ -55,6 +56,7 @@ class ShouldIBuyMilkAlternativeImplementation(ShouldIBuyMilk):
         super().__init__()
         self._goToStore = False
         
+    @convert_result(using=yesno_converter)
     def goToStore(self):
         ''' Return whether I should go to the store or not, this time with
         the calculation done elsewhere.'''

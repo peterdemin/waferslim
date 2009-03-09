@@ -1,11 +1,10 @@
 ''' Example of a Slim ScriptTable -- 
-based on http://fitnesse.org/FitNesse.SliM.ScriptTable'''
+based on http://fitnesse.org/FitNesse.SliM.ScriptTable.
+Note that due a limitation of the fitnesse Java code, script tables 
+require bool conversion with TrueFalseConverter - however this is the
+default bool converter in waferslim '''
 
-from waferslim.converters import convert_arg, register_converter, \
-                                 TrueFalseConverter
-
-# At present, script tables require TrueFalseConverter 
-register_converter(bool, TrueFalseConverter())
+from waferslim.converters import convert_arg
 
 class LoginDialogDriver(object):
     ''' Class to be the system-under-test in fitnesse. '''
@@ -41,5 +40,5 @@ class LoginDialogDriver(object):
         ''' Expose the internals of the sut to check number of login attempts.
         Note: no conversion-related decoration of this method is required 
         because there are no params and the numeric return value is 
-        implicitly converted by a standard registered converter'''
+        implicitly converted by waferslim'''
         return self._login_attempts 

@@ -3,9 +3,9 @@ BDD-style Lancelot specifications for the behaviour of the core library classes
 '''
 
 from waferslim.converters import register_converter, convert_value, \
-    convert_arg, Converter, TrueFalseConverter, YesNoConverter, \
-    FromConstructorConverter, DateConverter, TimeConverter, \
-    DatetimeConverter, ListConverter
+    convert_arg, convert_result, Converter, \
+    TrueFalseConverter, YesNoConverter, FromConstructorConverter, \
+    DateConverter, TimeConverter, DatetimeConverter, IterableConverter
 import lancelot, datetime
 
 class Fake(object):
@@ -153,8 +153,8 @@ def datetime_converter_behaviour():
                                   TimeConverter().from_string(time_part))
         )
 
-class ListConverterBehaviour(object):
-    ''' Group of related specs for conversion of lists '''
+class IterableConverterBehaviour(object):
+    ''' Group of related specs for conversion of iterable types '''
     
     @lancelot.verifiable
     def to_string_converts_each_item(self):
@@ -162,17 +162,20 @@ class ListConverterBehaviour(object):
         converter for that item'''
         a_list = [1, datetime.date(2009,5, 5), True]
         list_of_lists = [[1, 2], [True, False]]
-        spec = lancelot.Spec(ListConverter())
+        spec = lancelot.Spec(IterableConverter())
         spec.to_string(a_list).should_be(['1', '2009-05-05', 'true'])
         spec.to_string(list_of_lists).should_be([['1', '2'], ['true', 'false']])
 
-lancelot.grouping(ListConverterBehaviour)
+lancelot.grouping(IterableConverterBehaviour)
     
 class ASystemUnderTest(object):
-    ''' Dummy class with a setter method that can be decorated '''
+    ''' Dummy class with setter and result methods that can be decorated '''
     def set_afloat(self, float_value):
-        ''' method to be decorated '''
+        ''' setter method to be decorated '''
         self.float_value = float_value
+    def add(self, one_int, another_int):
+        ''' result method to be decorated '''
+        return one_int + another_int
 
 class ConvertArgBehaviour(object):
     ''' Group of related specs for convert_arg() behaviour.
@@ -224,5 +227,20 @@ class ConvertArgBehaviour(object):
 
 lancelot.grouping(ConvertArgBehaviour)
 
+@lancelot.verifiable
+def convert_result_behaviour():
+    ''' convert_result() should decorate a method so that its return value
+    is converted to a string using the supplied converter. If no converter
+    is specified  then a TypeError should be raised'''
+    converter = FromConstructorConverter(int)
+    decorated_fn = convert_result(using=converter)(ASystemUnderTest.add)
+    sut = ASystemUnderTest()
+    spec = lancelot.Spec(decorated_fn)
+    spec.__call__(sut, 1, 3).should_be('4')
+    spec.__call__(sut, 21, 1).should_be('22')
+
+    spec = lancelot.Spec(convert_result)
+    spec.__call__(using=None).should_raise(TypeError)
+    
 if __name__ == '__main__':
     lancelot.verify()
