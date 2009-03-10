@@ -123,6 +123,30 @@ def table_table():
     spec.it().should_be(lancelot.comparators.Type(list))
     spec.it().should_not_be(['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''])
 
+@lancelot.verifiable
+def symbols():
+    ''' Simulate the invocation of the decision table that uses symbols.
+    Note that the standard slim table() / execute() / reset() steps 
+    are missing from this simplistic sequence '''
+    execution_context = ExecutionContext()
+    results = Results()
+    instr_list = [
+                     ['1', 'import', 'waferslim.examples.values_and_symbols'],
+                     ['2', 'make', 'table', 'SomeDecisionTable'],
+                     ['3', 'call', 'table', 'setInput', '3'],
+                     ['4', 'callAndAssign', 'V', 'table', 'output'],
+                     ['5', 'call', 'table', 'setInput', '$V'],
+                     ['6', 'call', 'table', 'output'],
+                 ]
+    Instructions(instr_list).execute(execution_context, results)
+    spec = lancelot.Spec(results.collection())
+    spec.it().should_contain(['1', 'OK'])
+    spec.it().should_contain(['2', 'OK'])
+    spec.it().should_contain(['3', '/__VOID__/'])
+    spec.it().should_contain(['4', '4'])
+    spec.it().should_contain(['5', '/__VOID__/'])
+    spec.it().should_contain(['6', '8'])
+    
 if __name__ == '__main__':
     lancelot.verify()
 
