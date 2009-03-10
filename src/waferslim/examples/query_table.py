@@ -1,8 +1,8 @@
 ''' Example of a Slim QueryTable and a custom Converter -- 
 based on http://fitnesse.org/FitNesse.SliM.QueryTable'''
 
-from waferslim.converters import convert_arg, Converter, convert_value, \
-    register_converter
+from waferslim.converters import convert_arg, Converter, register_converter, \
+    converter_for
 import datetime
 
 class Employee(object):
@@ -24,11 +24,13 @@ class Employee(object):
 class EmployeeConverter(Converter):
     ''' Custom converter for Employee instances. Because this is being used
     in a query table we need to ensure that each Employee is converted to a 
-    list made up of [name, value] pairs. Note the final convert_value() call
-    to ensure that the contents of all the returned lists are str-converted '''
+    list made up of [name, value] pairs. Note the final converter.to_string()
+    call to ensure that the contents of the returned lists are str-converted'''
     def to_string(self, employee):
         dict_items = employee.as_dict().items
-        return convert_value( [[key, value] for key, value in dict_items()] )
+        converter = converter_for(list)
+        return converter.to_string([[key, value] \
+                                    for key, value in dict_items()])
 
 # Don't forget to register the custom converter!
 register_converter(Employee, EmployeeConverter())

@@ -10,7 +10,7 @@ Copyright 2009 by the author(s). All rights reserved
 import __builtin__, logging, re, sys, threading
 from waferslim.instructions import Instruction, \
                                    Make, Call, CallAndAssign, Import
-from waferslim.converters import convert_value
+from waferslim.converters import converter_for
 
 _OK = 'OK'
 _EXCEPTION = '__EXCEPTION__:'
@@ -21,9 +21,11 @@ class Results(object):
     ''' Collecting parameter for results of Instruction execute() methods '''
     NO_RESULT_EXPECTED = object()
     
-    def __init__(self):
-        ''' Set up the list to hold the collected results '''
+    def __init__(self, converter=converter_for):
+        ''' Set up the list to hold the collected results and obtain the
+        currently registered type converters '''
         self._collected = []
+        self._converter = converter
     
     def completed(self, instruction, result=NO_RESULT_EXPECTED):
         ''' An instruction has completed, perhaps with a result '''
@@ -32,7 +34,7 @@ class Results(object):
         elif result == None:
             str_result = _NONE_STRING
         else:
-            str_result = convert_value(result)
+            str_result = self._converter(result).to_string(result)
         self._collected.append([instruction.instruction_id(), str_result])
         
     def failed(self, instruction, cause):

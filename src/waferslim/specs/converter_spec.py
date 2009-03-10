@@ -2,11 +2,12 @@
 BDD-style Lancelot specifications for the behaviour of the core library classes
 '''
 
-from waferslim.converters import register_converter, convert_value, \
-    convert_arg, convert_result, Converter, \
+from waferslim.converters import register_converter, converter_for, \
+    convert_arg, convert_result, Converter, StrConverter, \
     TrueFalseConverter, YesNoConverter, FromConstructorConverter, \
     DateConverter, TimeConverter, DatetimeConverter, IterableConverter
 import lancelot, datetime
+from lancelot.comparators import FloatValue, Type
 
 class Fake(object):
     ''' Fake class whose str() value is determined by the constructor '''
@@ -31,17 +32,18 @@ def base_converter_from_string():
     spec.from_string('anything').should_raise(NotImplementedError)
 
 @lancelot.verifiable
-def convert_value_with_default_converter():
+def default_converter_for():
     ''' If no registered converter exists for the type of value being converted
     then the base Converter class should be used. '''
     fake = Fake('And a double Jeroboam of champagne')
-    spec = lancelot.Spec(convert_value)
-    spec.convert_value(fake).should_be(Converter().to_string(fake))
+    spec = lancelot.Spec(converter_for)
+    spec.converter_for(fake).should_be(Type(Converter))
+    spec.converter_for(Fake).should_be(Type(Converter))
     
 @lancelot.verifiable
-def convert_value_with_registered_converter():
-    ''' convert_value() should use the registered converter for the type
-    of the value being converted if it exists. '''
+def converter_for_registered_converter():
+    ''' converter_for() should supply the registered converter for the type
+    of value being converted if it exists. '''
     class FakeConverter(Converter, Fake):
         ''' Dummy Converter class, using Fake's constructor semantics'''
         def to_string(self, value):
@@ -50,8 +52,9 @@ def convert_value_with_registered_converter():
     fake = Fake('I think I can only manage six crates today')
     converted_msg = 'I hope monsieur was not overdoing it last night'
     register_converter(Fake, FakeConverter(converted_msg))
-    spec = lancelot.Spec(convert_value)
-    spec.convert_value(fake).should_be(converted_msg)
+    spec = lancelot.Spec(converter_for)
+    spec.converter_for(fake).should_be(Type(FakeConverter))
+    spec.converter_for(Fake).should_be(Type(FakeConverter))
     
 @lancelot.verifiable
 def register_converter_checks_attrs():
@@ -73,6 +76,14 @@ def register_converter_checks_attrs():
     converter.from_string = fake_method
     spec.register_converter(Fake, converter).should_not_raise(TypeError)
     
+@lancelot.verifiable
+def str_converter_behaviour():
+    ''' StrConverter to_string() and from_string() should be the value
+    as there is no actual conversion to do. '''
+    spec = lancelot.Spec(StrConverter())
+    spec.to_string('do come in').should_be('do come in')
+    spec.from_string('mr death').should_be('mr death')
+
 @lancelot.verifiable
 def yesno_converter_behaviour():
     ''' YesNoConverter to_string() should be yes/no; from_string() should be
@@ -173,19 +184,22 @@ class ASystemUnderTest(object):
     def set_afloat(self, float_value):
         ''' setter method to be decorated '''
         self.float_value = float_value
+    def multiply(self, an_int, a_float):
+        ''' another setter method to be decorated '''
+        return a_float * an_int
     def add(self, one_int, another_int):
         ''' result method to be decorated '''
         return one_int + another_int
 
 class ConvertArgBehaviour(object):
     ''' Group of related specs for convert_arg() behaviour.
-    convert_arg() is a function decorator that should convert the single 
-    arg supplied to the function into the required python type'''
+    convert_arg() is a function decorator that should convert  
+    args supplied to the function into the required python type'''
 
     @lancelot.verifiable
     def returns_callable_to_type(self):
-        ''' decorator for 'to_type' should return a callable that takes 2 args.
-        Invoking that callable should convert the type of the 2nd arg.'''
+        ''' decorator for 'to_type' should return a callable that takes 2 
+        or more args. Invoking that callable should convert each arg.'''
         decorated_fn = convert_arg(to_type=float)(ASystemUnderTest.set_afloat)
         
         spec = lancelot.Spec(decorated_fn)
@@ -197,13 +211,24 @@ class ConvertArgBehaviour(object):
         spec.when(spec.__call__(sut, '2.718282'))
         spec.then(lambda: sut.float_value).should_be(2.718282)
 
+        decorated_fn = convert_arg(to_type=int)(ASystemUnderTest.add)
+        spec = lancelot.Spec(decorated_fn)
+        spec.__call__(sut, '1', '2').should_be(3)
+        
     @lancelot.verifiable
     def returns_callable_using(self):
-        ''' decorator for 'using' should return a callable that takes 2 args.
-        Invoking that callable should convert the type of the 2nd arg.'''
-        # Ensure that type-standard converter is not used!
+        ''' decorator for 'using' should return a callable that takes 2 
+        or more args. Invoking that callable should convert each arg.'''
+        # Ensure that type-standard converters are not used!
         register_converter(float, Converter())
+        register_converter(int, Converter())
         
+        # Check that standard converters are not being used 
+        decorated_fn = convert_arg(to_type=float)(ASystemUnderTest.set_afloat)        
+        spec = lancelot.Spec(decorated_fn)
+        spec.__call__(None, '1.99').should_raise(NotImplementedError)
+        
+        # Now proceed with our specific "using" float converter...
         cnvt = FromConstructorConverter(float)
         decorated_fn = convert_arg(using=cnvt)(ASystemUnderTest.set_afloat)
         
@@ -215,9 +240,37 @@ class ConvertArgBehaviour(object):
         
         spec.when(spec.__call__(sut, '2.718282'))
         spec.then(lambda: sut.float_value).should_be(2.718282)
+
+        # Check that standard converters are not being used 
+        decorated_fn = convert_arg(to_type=int)(ASystemUnderTest.add)        
+        spec = lancelot.Spec(decorated_fn)
+        spec.__call__(sut, '1', '2').should_raise(NotImplementedError)
         
-        # Reset type-standard converter
+        # Now proceed with our specific "using" float converter...
+        cnvt = FromConstructorConverter(int)
+        decorated_fn = convert_arg(using=cnvt)(ASystemUnderTest.add)
+        spec = lancelot.Spec(decorated_fn)
+        spec.__call__(sut, '1', '2').should_be(3)
+
+        # Reset type-standard converters
         register_converter(float, FromConstructorConverter(float))
+        register_converter(int, FromConstructorConverter(int))
+
+    @lancelot.verifiable
+    def handles_multiple_arg_types(self):
+        ''' The decorator should handle conversion of multiple args of
+        multiple types '''
+        multiply = ASystemUnderTest.multiply
+        sut = ASystemUnderTest()
+        decorated_fn = convert_arg(to_type=(int, float))(multiply)
+        spec = lancelot.Spec(decorated_fn)
+        spec.__call__(sut, '4', '1.2').should_be(FloatValue(4.8))
+
+        converters = (FromConstructorConverter(int), 
+                      FromConstructorConverter(float))
+        decorated_fn = convert_arg(using=converters)(multiply)
+        spec = lancelot.Spec(decorated_fn)
+        spec.__call__(sut, '3', '1.1').should_be(FloatValue(3.3))
                 
     @lancelot.verifiable
     def fails_without_type_converter(self):

@@ -2,12 +2,15 @@
 Classes for converting to/from strings and python types, in a manner similar
 to that described at http://fitnesse.org/FitNesse.SliM.CustomTypes.
 
-Import this module and use convert_arg() as a method decorator 
-in your own classes (such as decision_table.py in the examples).
+Import this module and use the method decorators 
+    convert_arg(to_type=...) 
+    convert_arg(using=...)
+    convert_result(using=...) 
+in your own classes (see decision_table and script_table in the examples).
 
 Converters are provided for bool, int, float and datetime (date, time 
 and datetime) types. You may also register your own custom converter with
-this module using add_converter(), after which it will be accessible both
+this module using register_converter(), after which it will be accessible both
 to decorated methods and to the waferslim code that translates return values
 into standard slim strings.
 
@@ -18,7 +21,6 @@ Copyright 2009 by the author(s). All rights reserved
 
 import datetime
 
-# TODO: registration via ExecutionContext
 _ALL_CONVERTERS = {} # The registered converters, keyed on type
 
 class Converter(object):
@@ -33,8 +35,15 @@ class Converter(object):
         msg = 'from_string() must be implemented in subclasses'
         raise NotImplementedError(msg)
 
-__DEFAULT_CONVERTER = Converter() # Use as default (when no type-specific 
+_DEFAULT_CONVERTER = Converter() # Use as default (when no type-specific 
                                   # instance is present in _ALL_CONVERTERS)  
+
+class StrConverter(Converter):
+    ''' "Converter" (really a Null-Converter) to/from str type.
+    Only used by methods whose arguments have multiple types.'''
+    def from_string(self, value):
+        ''' The value is already a string so simply return it'''
+        return value
 
 class TrueFalseConverter(Converter):
     ''' Converter to/from bool type using true/false. This is the standard.'''
@@ -109,11 +118,11 @@ class DatetimeConverter(Converter):
         ''' Generate a datetime.datetime from a str '''
         # TODO: ?use datetime.datetime.strptime instead
         date_part, time_part = value.split(' ')
-        the_date = _ALL_CONVERTERS[datetime.date].from_string(date_part)
-        the_time = _ALL_CONVERTERS[datetime.time].from_string(time_part)
+        the_date = converter_for(datetime.date).from_string(date_part)
+        the_time = converter_for(datetime.time).from_string(time_part)
         return datetime.datetime.combine(the_date, the_time)
 
-#TODO: ?from_string for table_table?
+#TODO: ?from_string might be nice for table_table?
 class IterableConverter(Converter):
     ''' Converter to/from an iterable type (e.g. list, tuple). 
     Delegates to type-specific converters for each item in the list.'''
@@ -122,7 +131,8 @@ class IterableConverter(Converter):
         ''' Generate a list of str values from a list of typed values.
         Note the slightly misleading name of this method: it actually returns
         a list (of str) rather than an actual str...'''
-        return [convert_value(value) for value in iterable_values]
+        return [converter_for(value).to_string(value) \
+                for value in iterable_values]
 
 def register_converter(for_type, converter_instance):
     ''' Register a converter_instance to be used with all for_type instances.
@@ -137,7 +147,7 @@ def register_converter(for_type, converter_instance):
     msg = 'Converter for %s requires from_string() and to_string()' % for_type
     raise TypeError(msg)
 
-# Register the standard converters for bool, int, float and datetime types
+# Register the standard converters for bool, int, float, datetime, ...
 register_converter(bool, TrueFalseConverter())
 register_converter(int, FromConstructorConverter(int))
 register_converter(float, FromConstructorConverter(float))
@@ -146,8 +156,8 @@ register_converter(datetime.time, TimeConverter())
 register_converter(datetime.datetime, DatetimeConverter())
 register_converter(list, IterableConverter())
 register_converter(tuple, IterableConverter())
+register_converter(str, StrConverter())
 
-#TODO: converting multiple args ! :-(
 def convert_arg(to_type=None, using=None):
     ''' Method decorator to convert a slim-standard string arg to a specific
     python datatype. Only 1 of "to_type" or "using" should be supplied. 
@@ -155,18 +165,38 @@ def convert_arg(to_type=None, using=None):
     those added through this module. If "using" is supplied then the arg
     is taken as the converter to be used - however this converter will only
     be used 'temporarily' (not 'forever', as it would have been if 
-    register_converter() had been called.) '''
-    if not (to_type or using):
+    register_converter() had been called.) 
+    "to_type" and "using" may be supplied as single objects, in which case
+    the same conversion strategy will be applied to each argument in the target
+    method, e.g. 
+        @convert_arg(to_type=int)
+        def some_method(self, an_int, another_int)...
+    or they may be suppplied as iterables, in which case they will be iterated
+    over to provide a different converter for each argument in the target 
+    method, e.g. 
+        @convert_arg(to_type=(int, float))
+        def some_method(self, an_int, a_float)...
+    '''
+    conversion_strategy = to_type and to_type or using
+    if not conversion_strategy:
         raise TypeError('One of "to_type" or "using" must be supplied')
     def conversion_decorator(fn):
         ''' callable that performs the actual decoration '''
-        converter = using and using or _ALL_CONVERTERS[to_type]
-        return lambda self, value: fn(self, converter.from_string(value))
+        if hasattr(conversion_strategy, '__iter__'):
+            converter = using and using or \
+                        [_strict_converter_for(_type) for _type in to_type]
+            next = converter.__iter__().next
+        else:
+            converter = using and using or _strict_converter_for(to_type)
+            next = lambda: converter
+        return lambda self, *args: \
+                fn(self, *tuple([next().from_string(arg) for arg in args]))
     return conversion_decorator
 
-def convert_result(using=None):
+def convert_result(using):
     ''' Method decorator to convert a method result from a python datatype 
-    using a specific converter. Ordinarily this decorator is not required
+    using a specific converter. The argument "using" is required.
+    Ordinarily this decorator is not needed by client code,
     as result conversion is performed automatically using an appropriate
     converter registered for the datatype of the result value. It is included
     for specific conversion done 'temporarily' for a single fitnesse table 
@@ -178,11 +208,20 @@ def convert_result(using=None):
         return lambda self, *args: using.to_string(fn(self, *args))
     return conversion_decorator
 
-def convert_value(value): #TODO: move me!!!
-    ''' Convert from a typed value to a string value with to_string().
-    Try to use a registered type-specific converter if one exists,
-    otherwise use the default (base Converter).''' 
+def converter_for(type_or_value): 
+    ''' Returns the appropriate converter for a particular type_or_value.
+    This will be a registered type-specific converter if one exists,
+    otherwise the default (base Converter).''' 
     try:
-        return _ALL_CONVERTERS[type(value)].to_string(value)
+        return _strict_converter_for(type_or_value)
     except KeyError:
-        return __DEFAULT_CONVERTER.to_string(value)
+        return _DEFAULT_CONVERTER
+    
+def _strict_converter_for(type_or_value): 
+    ''' Returns the exact converter for a particular type_or_value.
+    This will be a registered type-specific converter if one exists,
+    otherwise a KeyError will be raised.''' 
+    try:
+        return _ALL_CONVERTERS[type_or_value]
+    except (KeyError, TypeError):
+        return _ALL_CONVERTERS[type(type_or_value)]
