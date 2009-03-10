@@ -3,7 +3,7 @@ BDD-style Lancelot specifications for the behaviour of the core library classes
 '''
 
 import lancelot
-from lancelot.comparators import Anything, Type
+from lancelot.comparators import Type
 from waferslim.instructions import Instruction, camel_case_to_pythonic, \
                                    Make, Import, Call, CallAndAssign
 from waferslim.execution import ParamsConverter

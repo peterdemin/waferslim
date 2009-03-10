@@ -6,8 +6,12 @@ your own code if you wish to use value comparisons or symbols.
 '''
 from waferslim.converters import convert_arg
 
-class SomeDecisionTable:
+class SomeDecisionTable(object):
     ''' Class to be the system under test in fitnesse '''
+    
+    def __init__(self):
+        ''' Initialise instance variable ''' 
+        self._int_value = 0
     
     @convert_arg(to_type=int)
     def set_input(self, int_value):

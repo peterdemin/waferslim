@@ -22,11 +22,12 @@ class Employee(object):
                 }
         
 class EmployeeConverter(Converter):
-    ''' Custom converter for Employee instances. Because this is being used
-    in a query table we need to ensure that each Employee is converted to a 
-    list made up of [name, value] pairs. Note the final converter.to_string()
-    call to ensure that the contents of the returned lists are str-converted'''
+    ''' Custom converter for Employee instances. '''
+    
     def to_string(self, employee):
+        '''Convert each Employee to a list of [name, value] pairs. 
+        Note the final converter.to_string() call to ensure that the 
+        contents of the returned lists are str-converted'''
         dict_items = employee.as_dict().items
         converter = converter_for(list)
         return converter.to_string([[key, value] \
@@ -50,7 +51,9 @@ class EmployeesHiredBefore(object):
         return self._simulate_query(self._before_date)
     
     def _simulate_query(self, for_date_parameter):
-        ''' Simulate performing a query e.g. on a database '''
+        ''' Simulate performing a query e.g. on a database.
+        The Employee instances will be converted to str with the
+        custom converter that was registered for them. '''
         return [
                 Employee(1429, 'Bob', 'Martin', (1974, 10, 10)),
                 Employee(8832, 'James', 'Grenning', (1979, 12, 15))

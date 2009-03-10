@@ -104,7 +104,6 @@ class ExecutionContextBehaviour(object):
         spec = lancelot.Spec(ExecutionContext())
         spec.get_module('import_me').should_raise(ImportError)
         
-        syspath_len_before = len(sys.path)
         path = ExecutionContext().get_module('waferslim').__path__[0]
         path = os.path.abspath(path + '/../../non-src')
         spec.when(spec.add_import_path(path))
@@ -244,11 +243,10 @@ class ResultsBehaviour(object):
     def completed_with_result(self):
         ''' completed() for Call should add to results list. 
         Results list should be accessible through collection() '''
-        class Fake:
+        class Fake(object):
             def __str__(self):
                 return 'Bon appetit'
         instruction = lancelot.MockSpec(name='instruction')
-        result = lancelot.MockSpec(name='result')
         spec = lancelot.Spec(Results())
         spec.completed(instruction, result=Fake()).should_collaborate_with(
             instruction.instruction_id().will_return('b'),
@@ -270,6 +268,8 @@ lancelot.grouping(ResultsBehaviour)
 
 @lancelot.verifiable
 def params_converter_behaviour():
+    ''' ParamsConverter should create (possibly nested) tuple of string args
+    from a (possibly nested) list of strings (possibly symbols) ''' 
     execution_context = lancelot.MockSpec('execution_context')
     spec = lancelot.Spec(ParamsConverter(execution_context))
     spec.to_args([], 0).should_be(())
@@ -296,8 +296,8 @@ def params_converter_behaviour():
     
     execution_context = lancelot.MockSpec('execution_context')
     spec = lancelot.Spec(ParamsConverter(execution_context))
-    spec.to_args([['bring', 'me'],['another', 'bucket']], 0).should_be(
-                 (('bring', 'me'),('another', 'bucket'))
+    spec.to_args([['bring', 'me'], ['another', 'bucket']], 0).should_be(
+                 (('bring', 'me'), ('another', 'bucket'))
                 )
 
 if __name__ == '__main__':

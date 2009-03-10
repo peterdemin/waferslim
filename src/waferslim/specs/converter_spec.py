@@ -41,20 +41,14 @@ def default_converter_for():
     spec.converter_for(Fake).should_be(Type(Converter))
     
 @lancelot.verifiable
-def converter_for_registered_converter():
+def registered_converter_for_():
     ''' converter_for() should supply the registered converter for the type
     of value being converted if it exists. '''
-    class FakeConverter(Converter, Fake):
-        ''' Dummy Converter class, using Fake's constructor semantics'''
-        def to_string(self, value):
-            ''' Return str() value specified in constructor '''
-            return self.str_value
     fake = Fake('I think I can only manage six crates today')
-    converted_msg = 'I hope monsieur was not overdoing it last night'
-    register_converter(Fake, FakeConverter(converted_msg))
+    register_converter(Fake, Converter())
     spec = lancelot.Spec(converter_for)
-    spec.converter_for(fake).should_be(Type(FakeConverter))
-    spec.converter_for(Fake).should_be(Type(FakeConverter))
+    spec.converter_for(fake).should_be(Type(Converter))
+    spec.converter_for(Fake).should_be(Type(Converter))
     
 @lancelot.verifiable
 def register_converter_checks_attrs():
@@ -81,6 +75,7 @@ def converters_are_thread_local():
     ''' Registered converters should be thread-local: a converter registered
     in one thread should be isolated from those registered in other threads'''
     def yes_no():
+        ''' method to register a converter in a separate thread ''' 
         register_converter(bool, YesNoConverter())
         other_converter = converter_for(bool)
         lancelot.Spec(other_converter).it().should_be(Type(YesNoConverter))
@@ -150,8 +145,8 @@ def date_converter_behaviour():
     ''' DateConverter should convert to/from datetime.date type using 
     iso-standard format (4digityear-2digitmonth-2digitday)'''
     spec = lancelot.Spec(DateConverter())
-    spec.to_string(datetime.date(2009,1,31)).should_be('2009-01-31')
-    spec.from_string('2009-01-31').should_be(datetime.date(2009,1,31))
+    spec.to_string(datetime.date(2009, 1, 31)).should_be('2009-01-31')
+    spec.from_string('2009-01-31').should_be(datetime.date(2009, 1, 31))
     
 @lancelot.verifiable
 def time_converter_behaviour():
@@ -159,10 +154,10 @@ def time_converter_behaviour():
     iso-standard format (2digithour:2digitminute:2digitsecond - with or without
     an additional optional .6digitmillis)'''
     spec = lancelot.Spec(TimeConverter())
-    spec.to_string(datetime.time(1,2,3)).should_be('01:02:03')
-    spec.to_string(datetime.time(1,2,3,4)).should_be('01:02:03.000004')
-    spec.from_string('01:02:03').should_be(datetime.time(1,2,3))
-    spec.from_string('01:02:03.000004').should_be(datetime.time(1,2,3,4))
+    spec.to_string(datetime.time(1, 2, 3)).should_be('01:02:03')
+    spec.to_string(datetime.time(1, 2, 3, 4)).should_be('01:02:03.000004')
+    spec.from_string('01:02:03').should_be(datetime.time(1, 2, 3))
+    spec.from_string('01:02:03.000004').should_be(datetime.time(1, 2, 3, 4))
     
 @lancelot.verifiable
 def datetime_converter_behaviour():
@@ -170,7 +165,8 @@ def datetime_converter_behaviour():
     combination of iso-standard formats ("dateformat<space>timeformat")'''
     spec = lancelot.Spec(DatetimeConverter())
     date_part, time_part = '2009-02-28', '21:54:32.987654'
-    spec.to_string(datetime.datetime(2009,2,28,21,54,32,987654)).should_be(
+    datetime_value = datetime.datetime(2009, 2, 28, 21, 54, 32, 987654)
+    spec.to_string(datetime_value).should_be(
         '2009-02-28 21:54:32.987654')
     spec.from_string('2009-02-28 21:54:32.987654').should_be(
         datetime.datetime.combine(DateConverter().from_string(date_part),
@@ -184,7 +180,7 @@ class IterableConverterBehaviour(object):
     def to_string_converts_each_item(self):
         ''' to_string() should convert each item using a type-specific 
         converter for that item'''
-        a_list = [1, datetime.date(2009,5, 5), True]
+        a_list = [1, datetime.date(2009, 5, 5), True]
         list_of_lists = [[1, 2], [True, False]]
         spec = lancelot.Spec(IterableConverter())
         spec.to_string(a_list).should_be(['1', '2009-05-05', 'true'])
@@ -237,7 +233,7 @@ class ConvertArgBehaviour(object):
         register_converter(int, Converter())
         
         # Check that standard converters are not being used 
-        decorated_fn = convert_arg(to_type=float)(ASystemUnderTest.set_afloat)        
+        decorated_fn = convert_arg(to_type=float)(ASystemUnderTest.set_afloat)
         spec = lancelot.Spec(decorated_fn)
         spec.__call__(None, '1.99').should_raise(NotImplementedError)
         

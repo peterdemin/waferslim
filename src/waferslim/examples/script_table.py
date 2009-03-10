@@ -4,8 +4,6 @@ Note that due a limitation of the fitnesse Java code, script tables
 require bool conversion with TrueFalseConverter - however this is the
 default bool converter in waferslim '''
 
-from waferslim.converters import convert_arg
-
 class LoginDialogDriver(object):
     ''' Class to be the system-under-test in fitnesse. '''
     

@@ -32,7 +32,7 @@ class Converter(object):
     
     def from_string(self, value):
         ''' NotImplemented! '''
-        msg = 'from_string() must be implemented in subclasses'
+        msg = 'from_string(%s) must be implemented in subclasses' % value
         raise NotImplementedError(msg)
 
 _DEFAULT_CONVERTER = Converter() # Use as default (when no type-specific 
@@ -54,7 +54,7 @@ class TrueFalseConverter(Converter):
     
     def to_string(self, value):
         ''' "true" if value==bool True; "false" otherwise '''
-        return value==True and 'true' or 'false'
+        return value == True and 'true' or 'false'
 
 class YesNoConverter(Converter):
     ''' Converter to/from bool type using yes/no. Offered as an alternative
@@ -66,13 +66,14 @@ class YesNoConverter(Converter):
     
     def to_string(self, value):
         ''' "yes" if value==bool True; "no" otherwise '''
-        return value==True and 'yes' or 'no'
+        return value == True and 'yes' or 'no'
     
 class FromConstructorConverter(Converter):
     ''' Converter for types that implement __new__(str) e.g. int and float '''
     
     def __init__(self, _type):
         ''' Specify the _type whose constructor will be used'''
+        Converter.__init__(self)
         self._type = _type
 
     def from_string(self, value):
