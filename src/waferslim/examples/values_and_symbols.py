@@ -10,7 +10,7 @@ class SomeDecisionTable:
     ''' Class to be the system under test in fitnesse '''
     
     @convert_arg(to_type=int)
-    def setInput(self, int_value):
+    def set_input(self, int_value):
         ''' Takes the value from the "input" column of the table.
         The convert_arg decorator ensures that the "int_value" param to the
         method is indeed of type "int".'''

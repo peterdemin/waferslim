@@ -18,28 +18,28 @@ class ShouldIBuyMilk(object):
         self._pints = 0
         
     @convert_arg(to_type=int)
-    def setCashInWallet(self, int_amount):
+    def set_cash_in_wallet(self, int_amount):
         ''' Decorated method to set cash as an int.
         The decorator uses the implicitly registered int converter to 
         translate from a standard slim string value to an int. '''
         self._cash = int_amount
         
     @convert_arg(using=yesno_converter)
-    def setCreditCard(self, bool_value):
+    def set_credit_card(self, bool_value):
         ''' Decorated method to set credit as a bool.
         The decorator uses an explicitl bool converter to 
         translate from a standard slim string value. '''
         self._credit = bool_value
         
     @convert_arg(to_type=int)
-    def setPintsOfMilkRemaining(self, int_amount):
+    def set_pints_of_milk_remaining(self, int_amount):
         ''' Decorated method to set pints of milk as an int.
         The decorator uses the implicitly registered int converter to 
         translate from a standard slim string value to an int. '''
         self._pints = int_amount
     
     @convert_result(using=yesno_converter)
-    def goToStore(self):
+    def go_to_store(self):
         ''' Return whether I should go to the store or not.
         The bool return value will be converted to a str with the
         YesNoConverter we explicitly supplied. For examples of
@@ -57,7 +57,7 @@ class ShouldIBuyMilkAlternativeImplementation(ShouldIBuyMilk):
         self._goToStore = False
         
     @convert_result(using=yesno_converter)
-    def goToStore(self):
+    def go_to_store(self):
         ''' Return whether I should go to the store or not, this time with
         the calculation done elsewhere.'''
         return self._goToStore

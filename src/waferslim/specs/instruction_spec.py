@@ -4,7 +4,7 @@ BDD-style Lancelot specifications for the behaviour of the core library classes
 
 import lancelot
 from lancelot.comparators import Anything, Type
-from waferslim.instructions import Instruction, \
+from waferslim.instructions import Instruction, camel_case_to_pythonic, \
                                    Make, Import, Call, CallAndAssign
 from waferslim.execution import ParamsConverter
 from waferslim.specs.spec_classes import ClassWithNoArgs, ClassWithOneArg, \
@@ -141,6 +141,18 @@ class MakeExceptionBehaviour(object):
 lancelot.grouping(MakeExceptionBehaviour)
 
 @lancelot.verifiable
+def pythonic_method_names():
+    ''' camel_case_to_pythonic should convert camelCase names to pythonic 
+    non_camel_case ones'''
+    spec = lancelot.Spec(camel_case_to_pythonic)
+    names = {'method':'method',
+             'aMethod':'a_method',
+             'camelsHaveHumps': 'camels_have_humps',
+             'pythons_are_snakes':'pythons_are_snakes' }
+    for camel, python in names.items():
+        spec.camel_case_to_pythonic(camel).should_be(python)
+
+@lancelot.verifiable
 def call_invokes_method():
     ''' Call instruction should get an instance from context and execute a
     callable method on it, returning the results '''
@@ -152,14 +164,14 @@ def call_invokes_method():
         instance = lancelot.MockSpec(name='instance')
         execution_context = lancelot.MockSpec(name='execution_context')
         results = lancelot.MockSpec(name='results')
-        params = ['instance', 'method']
+        params = ['instance', 'aMethod']
         params.extend(methods[target])
         call_instruction = Call('id', params)
         spec = lancelot.Spec(call_instruction)
         spec.execute(execution_context, results).should_collaborate_with(
             execution_context.get_instance(params[0]).will_return(instance),
             execution_context.to_args(params, 2).will_return(('life',)),
-            instance.method('life').will_return('meaning'),
+            instance.a_method('life').will_return('meaning'),
             results.completed(call_instruction, 'meaning')
             )
 

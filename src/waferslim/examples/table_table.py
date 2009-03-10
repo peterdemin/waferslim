@@ -13,7 +13,7 @@ _ERROR = 'error:%s' # Colour the cell yellow and set its contents
 class Bowling(object):
     ''' Class to be the system-under-test in fitnesse. '''
     
-    def doTable(self, table_rows):
+    def do_table(self, table_rows):
         ''' Standard entry point for Slim Table Table. 
         table_rows is a tuple containing a tuple for each row in the 
         fitnesse table (in this case 1 row for rolls and 1 row for scores)'''

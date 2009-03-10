@@ -74,6 +74,16 @@ class Make(Instruction):
                                   self._params[1], error.args[0])
             results.failed(self, cause)
 
+def camel_case_to_pythonic(method_name):
+    ''' Returns a method_name converted from camelCase to pythonic_case'''
+    return ''.join([_underscored_lowercase(char) for char in method_name])
+
+def _underscored_lowercase(char):
+    ''' Returns _<lowercase char> if char is uppercase; char otherwise'''
+    if char.isupper():
+        return '_%s' % char.lower()
+    return char
+
 class Call(Instruction):
     ''' A "call <instance>, <function>, <args>..." instruction '''
     
@@ -92,7 +102,7 @@ class Call(Instruction):
             return (None, False)
         
         try:
-            target = getattr(instance, params[1])
+            target = self._target_for(instance, params[1])
         except AttributeError:
             cause = '%s %s %s' % (_NO_METHOD, params[1], 
                                   type(instance).__name__)
@@ -102,6 +112,15 @@ class Call(Instruction):
         args = execution_context.to_args(params, 2)
         result = target(*args)
         return (result, True)
+    
+    def _target_for(self, instance, method_name):
+        ''' Return an instance's named method to use as a call target. 
+        If a pythonically_named method exists it will be used, otherwise the
+        fitnesse standard camelCase method will be returned it it exists. '''
+        try:
+            return getattr(instance, camel_case_to_pythonic(method_name))
+        except AttributeError:
+            return getattr(instance, method_name)
 
 class CallAndAssign(Call):
     ''' A "callAndAssign <symbol>, <instance>, <function>, <args>..." 

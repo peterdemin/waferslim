@@ -17,7 +17,7 @@ class LoginDialogDriver(object):
         self._login_attempts = 0
         self._message = None
         
-    def loginWithUsernameAndPassword(self, user_name, password):
+    def login_with_username_and_password(self, user_name, password):
         ''' Attempt to login with a user_name/ password combination. Fails
         unless args specified here match those specified in __init__.
         Note: no conversion-related decoration of this method is required 
@@ -30,13 +30,13 @@ class LoginDialogDriver(object):
         self._message = '%s not logged in.' % user_name
         return False
     
-    def loginMessage(self):
+    def login_message(self):
         ''' Expose the internals of the sut to check the login message.
         Note: no conversion-related decoration of this method is required 
         because there are no params and the return value is already a str'''
         return self._message
 
-    def numberOfLoginAttempts(self):
+    def number_of_login_attempts(self):
         ''' Expose the internals of the sut to check number of login attempts.
         Note: no conversion-related decoration of this method is required 
         because there are no params and the numeric return value is 
