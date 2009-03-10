@@ -74,8 +74,13 @@ class WaferSlimServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
             
     def _serve_until_shutdown(self):
         ''' Handle requests until shutdown is called '''
-        while self._up: 
+        if self._keepalive:
+            while self._up:
+                self.handle_request()
+        else:
             self.handle_request()
+            while self._up:
+                pass
 
 def _get_options():
     ''' Convenience method to parse command line args'''

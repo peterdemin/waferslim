@@ -38,8 +38,9 @@ class UnpackingError(WaferSlimException):
     
 def unpack(packed_string):
     ''' Unpack a chunked-up packed_string into a list '''
-    if isinstance(packed_string, str) \
-    or isinstance(packed_string, unicode):
+    if isinstance(packed_string, unicode):
+        return unpack(packed_string.encode(_BYTE_ENCODING))
+    if isinstance(packed_string, str):
         chunks = []
         _unpack_chunk(packed_string, chunks)
         return chunks
@@ -107,8 +108,7 @@ def _pack_item(item):
     [iiiiii:llllll:item...]'''
     if isinstance(item, list):
         return _pack_item(pack(item))
-    if isinstance(item, str) or \
-    isinstance(item, unicode):
+    if isinstance(item, str):
         return _ITEM_ENCODING % (len(item), _SEPARATOR, item)
     raise TypeError('%r is not a string')
             
