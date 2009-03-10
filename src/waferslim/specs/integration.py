@@ -89,6 +89,7 @@ def query_table():
 
 @lancelot.verifiable
 def table_table():
+    ''' Simulate the invocation of the example "table" table. '''
     execution_context = ExecutionContext()
     results = Results()
     instr_list = [

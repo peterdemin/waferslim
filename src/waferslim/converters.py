@@ -19,9 +19,9 @@ The latest source code is available at http://code.launchpad.net/waferslim.
 Copyright 2009 by the author(s). All rights reserved 
 '''
 
-import datetime
+import datetime, threading
 
-_ALL_CONVERTERS = {} # The registered converters, keyed on type
+__THREADLOCAL = threading.local()
 
 class Converter(object):
     ''' Base class for converting to/from strings from/to python types'''
@@ -36,7 +36,7 @@ class Converter(object):
         raise NotImplementedError(msg)
 
 _DEFAULT_CONVERTER = Converter() # Use as default (when no type-specific 
-                                  # instance is present in _ALL_CONVERTERS)  
+                                  # instance is present in converters)  
 
 class StrConverter(Converter):
     ''' "Converter" (really a Null-Converter) to/from str type.
@@ -142,21 +142,31 @@ def register_converter(for_type, converter_instance):
     A converter_instance must implement from_string() and to_string(). '''
     if hasattr(converter_instance, 'from_string') and \
     hasattr(converter_instance, 'to_string'):
-        _ALL_CONVERTERS[for_type] = converter_instance
+        __init_converters()
+        __THREADLOCAL.converters[for_type] = converter_instance
         return
     msg = 'Converter for %s requires from_string() and to_string()' % for_type
     raise TypeError(msg)
 
-# Register the standard converters for bool, int, float, datetime, ...
-register_converter(bool, TrueFalseConverter())
-register_converter(int, FromConstructorConverter(int))
-register_converter(float, FromConstructorConverter(float))
-register_converter(datetime.date, DateConverter())
-register_converter(datetime.time, TimeConverter())
-register_converter(datetime.datetime, DatetimeConverter())
-register_converter(list, IterableConverter())
-register_converter(tuple, IterableConverter())
-register_converter(str, StrConverter())
+def __init_converters():
+    ''' Ensure standard converters exist for bool, int, float, datetime, ...
+    All registered converters, keyed on type, are held as thread-local to 
+    ensure that ExecutionContext-s (which are created per thread by the 
+    server) really are isolated from each other when the server is run 
+    in keepalive (multi-user) mode'''
+    if hasattr(__THREADLOCAL, 'converters'):
+        return
+    
+    __THREADLOCAL.converters = {} 
+    register_converter(bool, TrueFalseConverter())
+    register_converter(int, FromConstructorConverter(int))
+    register_converter(float, FromConstructorConverter(float))
+    register_converter(datetime.date, DateConverter())
+    register_converter(datetime.time, TimeConverter())
+    register_converter(datetime.datetime, DatetimeConverter())
+    register_converter(list, IterableConverter())
+    register_converter(tuple, IterableConverter())
+    register_converter(str, StrConverter())
 
 def convert_arg(to_type=None, using=None):
     ''' Method decorator to convert a slim-standard string arg to a specific
@@ -220,8 +230,9 @@ def converter_for(type_or_value):
 def _strict_converter_for(type_or_value): 
     ''' Returns the exact converter for a particular type_or_value.
     This will be a registered type-specific converter if one exists,
-    otherwise a KeyError will be raised.''' 
+    otherwise a KeyError will be raised.'''
+    __init_converters() 
     try:
-        return _ALL_CONVERTERS[type_or_value]
+        return __THREADLOCAL.converters[type_or_value]
     except (KeyError, TypeError):
-        return _ALL_CONVERTERS[type(type_or_value)]
+        return __THREADLOCAL.converters[type(type_or_value)]

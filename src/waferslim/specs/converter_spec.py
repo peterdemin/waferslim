@@ -6,7 +6,7 @@ from waferslim.converters import register_converter, converter_for, \
     convert_arg, convert_result, Converter, StrConverter, \
     TrueFalseConverter, YesNoConverter, FromConstructorConverter, \
     DateConverter, TimeConverter, DatetimeConverter, IterableConverter
-import lancelot, datetime
+import lancelot, datetime, threading
 from lancelot.comparators import FloatValue, Type
 
 class Fake(object):
@@ -75,6 +75,19 @@ def register_converter_checks_attrs():
     converter.to_string = fake_method
     converter.from_string = fake_method
     spec.register_converter(Fake, converter).should_not_raise(TypeError)
+    
+@lancelot.verifiable
+def converters_are_thread_local():
+    ''' Registered converters should be thread-local: a converter registered
+    in one thread should be isolated from those registered in other threads'''
+    def yes_no():
+        register_converter(bool, YesNoConverter())
+        other_converter = converter_for(bool)
+        lancelot.Spec(other_converter).it().should_be(Type(YesNoConverter))
+    yes_no_thread = threading.Thread(target=yes_no)
+    yes_no_thread.start()
+    yes_no_thread.join()
+    lancelot.Spec(converter_for(bool)).it().should_be(Type(TrueFalseConverter))
     
 @lancelot.verifiable
 def str_converter_behaviour():
