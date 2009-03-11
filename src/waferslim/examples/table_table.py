@@ -3,6 +3,19 @@ based on http://fitnesse.org/FitNesse.SliM.TableTable.
 This kind of table has to do all the calculation work for determining whether
 an actual result for a cell is the same as the expected result, and passes
 back cell-by-cell result values.
+
+Fitnesse table markup:
+
+|import|
+|waferslim.examples.table_table|
+
+|Table:Bowling|
+|3|5|4|/|X||X||3|4|6|/|7|2|3|4|9|-|4|/|3|
+||8 ||28||51||68||75||92||101||108||117|||130|
+
+This test fails as the code for calculating scores is not implemented:
+all the "score" cells in the second row of the table will be coloured red
+and contain the text "NOT IMPLEMENTED". 
 '''
 
 _NO_CHANGE = '' # Leave the cell uncoloured

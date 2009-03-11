@@ -1,5 +1,36 @@
 ''' Example of a Slim DecisionTable -- 
-based on http://fitnesse.org/FitNesse.SliM.DecisionTable'''
+based on http://fitnesse.org/FitNesse.SliM.DecisionTable
+
+Fitnesse table markup:
+
+|import|
+|waferslim.examples.decision_table|
+
+|should I buy milk|
+|cash in wallet|credit card|pints of milk remaining|go to store?|
+|      0       |    no     |      0                |    no      |
+|      10      |    no     |      0                |    yes     |
+|      0       |    yes    |      0                |    yes     |
+|      10      |    yes    |      0                |    yes     |
+|      0       |    no     |      1                |    no      |
+|      10      |    no     |      1                |    no      |
+|      0       |    yes    |      1                |    no      |
+|      10      |    yes    |      1                |    nope    |
+
+|should I buy milk alternative implementation|
+|cash in wallet|credit card|pints of milk remaining|go to store?|
+|      0       |    no     |      0                |    no      |
+|      10      |    no     |      0                |    yes     |
+|      0       |    yes    |      0                |    yes     |
+|      10      |    yes    |      0                |    yes     |
+|      0       |    no     |      1                |    no      |
+|      10      |    no     |      1                |    no      |
+|      0       |    yes    |      1                |    no      |
+|      10      |    yes    |      1                |    nope    |
+
+This test will pass apart from the last row in each table 
+whose "nope" values will be red.
+'''
 
 from waferslim.converters import convert_arg, convert_result, YesNoConverter
 

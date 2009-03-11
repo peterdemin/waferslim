@@ -2,7 +2,26 @@
 based on http://fitnesse.org/FitNesse.SliM.ScriptTable.
 Note that due a limitation of the fitnesse Java code, script tables 
 require bool conversion with TrueFalseConverter - however this is the
-default bool converter in waferslim '''
+default bool converter in waferslim.
+
+Fitnesse table markup:
+
+|import|
+|waferslim.examples.script_table|
+
+|script|
+|start|login dialog driver|Bob|xyzzy|
+|login with username|Bob|and password|xyzzy|
+|check|login message|Bob logged in.|
+|reject|login with username|Bob|and password|bad password|
+|check|login message|Bob not logged in.|
+|ensure|login with username|Bob|and password|xyzzy|
+|note|this is a comment|
+|show|number of login attempts|
+|$symbol=|login message|
+
+This test will pass: all cells will be green. 
+'''
 
 class LoginDialogDriver(object):
     ''' Class to be the system-under-test in fitnesse. '''

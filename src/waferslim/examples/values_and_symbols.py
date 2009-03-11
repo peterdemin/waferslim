@@ -3,6 +3,25 @@ based on http://fitnesse.org/FitNesse.SliM.ValueComparisons
 and http://fitnesse.org/FitNesse.SliM.SymbolsInTables.
 Hopefully this example demonstrates that there's no extra work required for
 your own code if you wish to use value comparisons or symbols.
+
+Fitnesse table markup:
+
+|import|
+|waferslim.examples.values_and_symbols|
+
+|DT:some decision table|
+|input|output?|
+|3|$V=|
+|$V|8|
+|9|$V|
+
+|DT:some decision table|
+|input|output?|
+|3|<5|
+|5|>=3|
+|8|3<_<9|
+
+This test will pass only for the first two rows in each decision table. 
 '''
 from waferslim.converters import convert_arg
 

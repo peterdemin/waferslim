@@ -1,5 +1,19 @@
 ''' Example of a Slim QueryTable and a custom Converter -- 
-based on http://fitnesse.org/FitNesse.SliM.QueryTable'''
+based on http://fitnesse.org/FitNesse.SliM.QueryTable
+
+Fitnesse table markup:
+
+|import|
+|waferslim.examples.query_table|
+
+|Query:employees hired before|1980-12-10|
+|employee number|first name|last name|hire date|
+|1429           |Bob       |Martin   |1975-10-10|
+|9924           |Bill      |Mitchell |1966-12-19|
+
+This test will fail: Bob Martin's hire date is wrong, Bill Mitchell
+will be marked as missing, and James Grenning will be marked as surplus.
+'''
 
 from waferslim.converters import convert_arg, Converter, register_converter, \
     converter_for

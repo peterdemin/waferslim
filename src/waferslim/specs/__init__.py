@@ -1,5 +1,7 @@
 '''
 BDD-style Lancelot specifications for the behaviour of the core library classes
+Lancelot is distributed at http://pypi.python.org/pypi/lancelot
+and the latest source is available at https://launchpad.net/lancelot.
 '''
 
 import lancelot
