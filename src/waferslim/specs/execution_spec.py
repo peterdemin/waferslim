@@ -11,7 +11,26 @@ from waferslim.instructions import Make, Import, Call, CallAndAssign, \
 
 class ExecutionContextBehaviour(object):
     ''' Related Specs for ExecutionContext behaviour '''
+    
+    def _nonsrc_path(self, execution_context):
+        ''' Path to non-src modules that are known to be outside sys.path '''
+        path = execution_context.get_module('waferslim').__path__[0]
+        return os.path.abspath(path + '/../../non-src')
 
+    @lancelot.verifiable
+    def uses_added_import_paths(self):
+        ''' add_import_path() should allow packages or modules to be found 
+        without altering sys.path'''
+        execution_context = ExecutionContext()
+        spec = lancelot.Spec(execution_context)
+        spec.get_module('import_me').should_raise(ImportError)
+        
+        path = self._nonsrc_path(execution_context)
+        spec.when(spec.add_import_path(path))
+        spec.then(spec.get_module('import_me')).should_not_raise(ImportError)
+        
+        lancelot.Spec(sys.path).it().should_not_contain(path)
+        
     @lancelot.verifiable
     def get_imported_module(self):
         ''' get_module() should return a requested module, which should not
@@ -20,9 +39,11 @@ class ExecutionContextBehaviour(object):
         The same module should not be returned from different contexts '''
         
         same_context = ExecutionContext()
+        same_context.add_import_path(self._nonsrc_path(same_context))
         different_context = ExecutionContext()
-        for name in ('waferslim.examples', 
-                     'waferslim.examples.module_with_state'):
+        different_context.add_import_path(self._nonsrc_path(different_context))
+        for name in ('import_me', 
+                     'module_with_state'):
             spec = lancelot.Spec(same_context)
             spec.get_module(name).should_be(Type(types.ModuleType))
 
@@ -42,9 +63,10 @@ class ExecutionContextBehaviour(object):
         successive invocations. The same type should not be returned from
         different contexts. State in a module should be isolated within 
         each context'''
-        _types = {'StateAlteringClass':'waferslim.examples.module_with_state'}
+        _types = {'StateAlteringClass':'module_with_state'}
         
         execution_context = ExecutionContext()
+        execution_context.add_import_path(self._nonsrc_path(execution_context))
         for name, _type in _types.items():
             fully_qualified_name = '%s.%s' % (_type, name) 
             same_type = execution_context.get_type(fully_qualified_name)
@@ -54,7 +76,9 @@ class ExecutionContextBehaviour(object):
             spec = lancelot.Spec(execution_context)
             spec.get_type(fully_qualified_name).should_be(SameAs(same_type))
             
-            different_type = ExecutionContext().get_type(fully_qualified_name)
+            other_context = ExecutionContext()
+            other_context.add_import_path(self._nonsrc_path(other_context))
+            different_type = other_context.get_type(fully_qualified_name)
             spec.get_type(fully_qualified_name).should_not_be(
                                                 SameAs(different_type))
             
@@ -96,20 +120,6 @@ class ExecutionContextBehaviour(object):
 
         spec = lancelot.Spec(ExecutionContext())
         spec.get_instance('wafer thin').should_raise(KeyError)
-        
-    @lancelot.verifiable
-    def uses_added_import_paths(self):
-        ''' add_import_path() should allow packages or modules to be found 
-        without altering sys.path'''
-        spec = lancelot.Spec(ExecutionContext())
-        spec.get_module('import_me').should_raise(ImportError)
-        
-        path = ExecutionContext().get_module('waferslim').__path__[0]
-        path = os.path.abspath(path + '/../../non-src')
-        spec.when(spec.add_import_path(path))
-        spec.then(spec.get_module('import_me')).should_not_raise(ImportError)
-        
-        lancelot.Spec(sys.path).it().should_not_contain(path)
 
     @lancelot.verifiable
     def uses_added_type_context(self):
