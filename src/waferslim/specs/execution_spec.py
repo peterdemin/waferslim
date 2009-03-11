@@ -14,8 +14,10 @@ class ExecutionContextBehaviour(object):
     
     def _nonsrc_path(self, execution_context):
         ''' Path to non-src modules that are known to be outside sys.path '''
-        path = execution_context.get_module('waferslim').__path__[0]
-        return os.path.abspath(path + '/../../non-src')
+        slim_path = execution_context.get_module('waferslim').__path__[0]
+        path = os.path.abspath(slim_path 
+                               + '%s..%snon-waferslim' % (os.sep, os.sep))
+        return path
 
     @lancelot.verifiable
     def uses_added_import_paths(self):

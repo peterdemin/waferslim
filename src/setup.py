@@ -9,10 +9,11 @@ from setuptools import setup
 setup(name='waferslim', 
       version='0.9',
       packages=['waferslim', 'waferslim.specs', 'waferslim.examples'],
-      data_files=[('waferslim', ['logging.conf']),
+      data_files=[('waferslim', ['waferslim/logging.conf']),
                   ('', ['README.txt', 'COPYING', 'COPYING.LESSER'])],
       provides=['waferslim'],
-      depends=['lancelot'],
+      requires=['lancelot'],
+      install_requires=['lancelot'],
       license='GNU Lesser General Public License v3 (LGPL v3)',
       description='A python port of the fitnesse slim server and protocols',
       long_description='''WaferSlim is a python port of the fitnesse slim 
