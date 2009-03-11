@@ -1,7 +1,23 @@
 '''
 Server classes. 
 
-Run this module to start the WaferSlimServer listening on a host / port.
+Run this module to start the WaferSlimServer listening on a host / port:
+
+    Usage: 
+        python3 -m waferslim.server [options]
+    
+    Options:
+     -h, --help                see the full list of options
+     -p PORT, --port=PORT      listen on port PORT
+     -i HOST, --inethost=HOST  listen on inet address HOST
+     -v, --verbose             log verbose messages at runtime
+     -k, --keepalive           keep the server alive to service multiple
+                               requests (requires fork of fitnesse java code)
+     -l FILE, --logconf=FILE   get logging configuration from FILE
+     -s PATH, --syspath=PATH   add ,-separated entries from PATH to sys.path
+    When run from fitnesse the PORT argument must be specified last e.g.
+    
+    COMMAND_PATTERN {python3 -m waferslim.server --syspath %p --port} 
     
 The latest source code is available at http://code.launchpad.net/waferslim.
 
@@ -98,7 +114,7 @@ def _get_options():
                       default=False, action='store_true',
                       help='keep the server alive - service multiple requests')
     parser.add_option('-l', '--logconf', dest='logconf', 
-                      metavar='CONFIGFILE', default='logging.conf', 
+                      metavar='CONFIGFILE', default='', 
                       help='get logging configuration from CONFIGFILE')
     parser.add_option('-s', '--syspath', dest='syspath', 
                       metavar='SYSPATH', default='', 
@@ -113,7 +129,8 @@ def start_server():
         logging.config.fileConfig(options.logconf)
     else:
         logging.basicConfig()
-        logging.warning('Invalid logging config file: %s' % options.logconf)
+        if options.logconf:
+            logging.warn('Invalid logging config file: %s' % options.logconf)
         
     for element in options.syspath.split(','):
         sys.path.append(element)
