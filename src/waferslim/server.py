@@ -171,7 +171,7 @@ def start_server():
     _setup_syspath(options)
     _setup_encoding(options)
     _setup_port(options, args)
-    
+    options.version = waferslim.__version__
     WaferSlimServer(options).serve_forever()
 
 if __name__ == '__main__':
