@@ -7,7 +7,7 @@ use_setuptools()
 from setuptools import setup
 
 setup(name='waferslim', 
-      version='0.9',
+      version='0.9.1',
       packages=['waferslim', 'waferslim.specs', 'waferslim.examples'],
       data_files=[('waferslim', ['waferslim/logging.conf']),
                   ('', ['README.txt', 'COPYING', 'COPYING.LESSER'])],
