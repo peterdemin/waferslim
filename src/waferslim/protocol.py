@@ -11,15 +11,15 @@ Copyright 2009 by the author(s). All rights reserved
 from waferslim import WaferSlimException
 from waferslim.execution import Results, ExecutionContext, Instructions
 
-_BYTE_ENCODING = 'utf-8'
+BYTE_ENCODING = 'utf-8' #can be altered by server startup options
 _VERSION = 'Slim -- V0.0\n'
 _START_CHUNK = '['
 _END_CHUNK = ']'
 _SEPARATOR = ':'
-_SEPARATOR_LENGTH = len(_SEPARATOR.encode(_BYTE_ENCODING))
+_SEPARATOR_LENGTH = len(_SEPARATOR.encode(BYTE_ENCODING))
 _NUMERIC_LENGTH = 6
 _NUMERIC_ENCODING = '%%0%sd' % _NUMERIC_LENGTH
-_NUMERIC_BLOCK_LENGTH = len((_NUMERIC_ENCODING % 0).encode(_BYTE_ENCODING)) \
+_NUMERIC_BLOCK_LENGTH = len((_NUMERIC_ENCODING % 0).encode(BYTE_ENCODING)) \
     + _SEPARATOR_LENGTH
 _ITEM_ENCODING = _NUMERIC_ENCODING + '%s%s'
 _DISCONNECT = 'bye'
@@ -38,9 +38,8 @@ class UnpackingError(WaferSlimException):
     
 def unpack(packed_string):
     ''' Unpack a chunked-up packed_string into a list '''
-    if isinstance(packed_string, unicode):
-        return unpack(packed_string.encode(_BYTE_ENCODING))
-    if isinstance(packed_string, str):
+    if isinstance(packed_string, unicode) \
+    or isinstance(packed_string, str):
         chunks = []
         _unpack_chunk(packed_string, chunks)
         return chunks
@@ -67,6 +66,8 @@ def _unpack_chunk(packed_chunk, chunks):
             sub_chunk = []
             _unpack_chunk(item, sub_chunk)
             chunks.append(sub_chunk)
+#        elif isinstance(item, unicode):
+#            chunks.append(item.encode(BYTE_ENCODING))
         else:
             chunks.append(item)
         
@@ -108,9 +109,9 @@ def _pack_item(item):
     [iiiiii:llllll:item...]'''
     if isinstance(item, list):
         return _pack_item(pack(item))
-    if isinstance(item, str):
+    if isinstance(item, str) or isinstance(item, unicode):
         return _ITEM_ENCODING % (len(item), _SEPARATOR, item)
-    raise TypeError('%r is not a string')
+    raise TypeError('%r is not a string' % item)
             
 class RequestResponder(object):
     ''' Mixin class for responding to Slim requests.
@@ -135,7 +136,7 @@ class RequestResponder(object):
     
     def _send_ack(self, request):
         ''' Acknowledge the request by sending the Slim Version '''
-        response = _VERSION.encode(_BYTE_ENCODING)
+        response = _VERSION.encode(BYTE_ENCODING)
         self.debug('Send Ack')
         return request.send(response)
     
@@ -175,26 +176,27 @@ class RequestResponder(object):
     def _get_message_length(self):
         ''' Get the length of the message from an initial numeric header '''
         header_format = (_NUMERIC_ENCODING % 0) + _SEPARATOR 
-        byte_size = len(header_format.encode(_BYTE_ENCODING))
-        data = self.request.recv(byte_size).decode(_BYTE_ENCODING)
+        byte_size = len(header_format.encode(BYTE_ENCODING))
+        data = self.request.recv(byte_size).decode(BYTE_ENCODING)
         length = int(data[0:_NUMERIC_LENGTH])
         return length, byte_size
     
     def _get_message(self, message_length):
         ''' Receive a message of a known length, in parts''' 
         message, remaining = '', message_length
-        while remaining:
-            data = self.request.recv(min(1024, remaining))
+        while remaining > 0:
+            # Try 1k to work around incorrect message_length with utf-8
+            data = self.request.recv(1024) 
             self.debug('Recv %s bytes...' % len(data))
             message += data
             remaining = message_length - len(message)
-        return message.decode(_BYTE_ENCODING)
+        return message.decode(BYTE_ENCODING)
     
     def _format_response(self, msg):
         ''' Encode the bytes and add the length in an initial numeric header'''
-        msg_bytes = msg.encode(_BYTE_ENCODING)
+        msg_bytes = msg.encode(BYTE_ENCODING)
         response_str = _ITEM_ENCODING % (len(msg_bytes), _SEPARATOR, msg)
-        return response_str.encode(_BYTE_ENCODING)
+        return response_str.encode(BYTE_ENCODING)
         
     def debug(self, msg):
         ''' log a debug msg '''

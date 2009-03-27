@@ -5,33 +5,40 @@ Run this module to start the WaferSlimServer listening on a host / port:
 
     Usage: 
         python -m waferslim.server [options]
-    
     Options:
-     -h, --help                see the full list of options
-     -p PORT, --port=PORT      listen on port PORT
-     -i HOST, --inethost=HOST  listen on inet address HOST
-     -v, --verbose             log verbose messages at runtime
-     -k, --keepalive           keep the server alive to service multiple
-                               requests (requires fork of fitnesse java code)
-     -l FILE, --logconf=FILE   get logging configuration from FILE
-     -s PATH, --syspath=PATH   add ,-separated entries from PATH to sys.path
-    When run from fitnesse the PORT argument must be specified last e.g.
+     -h, --help                  see the full list of options
+     -p PORT, --port=...         listen on port PORT (required!)
+     -i HOST, --inethost=...     listen on inet address HOST 
+                                 (default: localhost)
+     -e ENCODING, --encoding=... use byte-encoding ENCODING
+                                 (default: utf-8)
+     -v, --verbose               log verbose messages at runtime
+                                 (default: False)
+     -k, --keepalive             keep the server alive to service multiple
+                                 requests (requires fork of fitnesse java code)
+                                 (default: False)
+     -l FILE, --logconf=...      use logging configuration from FILE
+     -s PATH, --syspath=...      add entries from PATH to sys.path
     
-    COMMAND_PATTERN {python -m waferslim.server --syspath %p --port} 
+    A "trailing" numeric value is assumed to be a port number
+    if no explicit PORT is specified, so the following are equivalent
+    within fitnesse :
+    COMMAND_PATTERN {python3 -m waferslim.server --syspath %p } 
+    COMMAND_PATTERN {python3 -m waferslim.server --syspath %p --port } 
     
 The latest source code is available at http://code.launchpad.net/waferslim.
 
 Copyright 2009 by the author(s). All rights reserved 
 '''
-import logging, logging.config, SocketServer
+import codecs, logging, logging.config, os, SocketServer, sys
 from optparse import OptionParser
-import os, sys
-from waferslim.protocol import RequestResponder
+import waferslim.protocol
 
 _LOGGER_NAME = 'WaferSlimServer'
 _ALL_LOGGER_NAMES = (_LOGGER_NAME, 'Instructions')
 
-class SlimRequestHandler(SocketServer.BaseRequestHandler, RequestResponder):
+class SlimRequestHandler(SocketServer.BaseRequestHandler, 
+                         waferslim.protocol.RequestResponder):
     ''' Delegated the responsibility of handling TCP socket requests from
     the server -- in turn most of the work is passed off to the mixin class
     RequestResponder '''
@@ -41,10 +48,13 @@ class SlimRequestHandler(SocketServer.BaseRequestHandler, RequestResponder):
         from_addr = '%s:%s' % self.client_address
         self.info('Handling request from %s' % from_addr)
         
-        received, sent = self.respond_to_request()
-        
-        done_msg = 'Done with %s: %s bytes received, %s bytes sent'
-        self.info(done_msg % (from_addr, received, sent))
+        try:
+            received, sent = self.respond_to_request()
+            done_msg = 'Done with %s: %s bytes received, %s bytes sent'
+            self.info(done_msg % (from_addr, received, sent))
+        except Exception, error:
+            logging.error(error, exc_info=1)
+
         self.server.done(self)
         
     def info(self, msg):
@@ -102,38 +112,65 @@ def _get_options():
     ''' Convenience method to parse command line args'''
     parser = OptionParser()
     parser.add_option('-p', '--port', dest='port', 
-                      metavar='PORT', default=8989,
+                      metavar='PORT',
                       help='listen on port PORT')
     parser.add_option('-i', '--inethost', dest='inethost', 
                       metavar='HOST', default='localhost',
-                      help='listen on inet address HOST')
+                      help='listen on inet address HOST (default: localhost)')
+    parser.add_option('-e', '--encoding', dest='encoding', 
+                      metavar='ENCODING', default='utf-8',
+                      help='byte (de-)encode with ENCODING (default: utf-8)')
     parser.add_option('-v', '--verbose', dest='verbose', 
                       default=False, action='store_true',
-                      help='log verbose messages at runtime')
+                      help='log verbose messages at runtime (default: False)')
     parser.add_option('-k', '--keepalive', dest='keepalive', 
                       default=False, action='store_true',
-                      help='keep the server alive - service multiple requests')
+                      help='keep alive for multiple requests (default: False)')
     parser.add_option('-l', '--logconf', dest='logconf', 
                       metavar='CONFIGFILE', default='', 
-                      help='get logging configuration from CONFIGFILE')
+                      help='use logging configuration from CONFIGFILE')
     parser.add_option('-s', '--syspath', dest='syspath', 
                       metavar='SYSPATH', default='', 
-                      help='add ,-separated entries from SYSPATH to sys.path')
+                      help='add entries from SYSPATH to sys.path')
     return parser.parse_args()
 
-def start_server():
-    ''' Convenience method to start the server (used by __main__)'''
-    (options, args) = _get_options()
-    
+def _setup_logging(options):
+    ''' Configure standard logging package '''
     if os.path.exists(options.logconf):
         logging.config.fileConfig(options.logconf)
     else:
         logging.basicConfig()
         if options.logconf:
             logging.warn('Invalid logging config file: %s' % options.logconf)
-        
-    for element in options.syspath.split(','):
+
+def _setup_syspath(options):
+    ''' Configure syspath '''
+    for element in options.syspath.split(os.pathsep):
         sys.path.append(element)
+
+def _setup_encoding(options):
+    ''' Configure byte (de-)encoding to use '''
+    if codecs.lookup(options.encoding):
+        waferslim.protocol.BYTE_ENCODING = options.encoding    
+    
+def _setup_port(options, args):
+    ''' If port is not explicitly specified and there are leftover args, the
+    last numeric arg must be the port number passed in from fitnesse '''
+    if args and not options.port:
+        args.reverse()
+        for arg in args:
+            if arg.isdigit():
+                options.port = arg
+                break
+
+def start_server():
+    ''' Convenience method to start the server (used by __main__)'''
+    (options, args) = _get_options()
+
+    _setup_logging(options)
+    _setup_syspath(options)
+    _setup_encoding(options)
+    _setup_port(options, args)
     
     WaferSlimServer(options).serve_forever()
 

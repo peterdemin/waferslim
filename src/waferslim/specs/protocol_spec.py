@@ -84,11 +84,11 @@ def request_responder_behaviour():
     spec.should_collaborate_with(
         request.send('Slim -- V0.0\n'.encode('utf-8')).will_return(2),
         request.recv(7).will_return('000009:'.encode('utf-8')),
-        request.recv(9).will_return('[000000:]'.encode('utf-8')),
+        request.recv(1024).will_return('[000000:]'.encode('utf-8')),
         instructions.execute(Type(ExecutionContext), Type(Results)),
         request.send('000009:[000000:]'.encode('utf-8')).will_return(4),
         request.recv(7).will_return('000003:'.encode('utf-8')),
-        request.recv(3).will_return('bye'.encode('utf-8')),
+        request.recv(1024).will_return('bye'.encode('utf-8')),
         and_result=(7+9+7+3, 2+4))
     
     request = lancelot.MockSpec(name='request')
@@ -100,15 +100,15 @@ def request_responder_behaviour():
     spec.should_collaborate_with(
         request.send('Slim -- V0.0\n'.encode('utf-8')).will_return(2),
         request.recv(7).will_return('000009:'.encode('utf-8')),
-        request.recv(9).will_return('[000000:]'.encode('utf-8')),
+        request.recv(1024).will_return('[000000:]'.encode('utf-8')),
         instructions.execute(Type(ExecutionContext), Type(Results)),
         request.send('000009:[000000:]'.encode('utf-8')).will_return(4),
         request.recv(7).will_return('000009:'.encode('utf-8')),
-        request.recv(9).will_return('[000000:]'.encode('utf-8')),
+        request.recv(1024).will_return('[000000:]'.encode('utf-8')),
         instructions.execute(Type(ExecutionContext), Type(Results)),
         request.send('000009:[000000:]'.encode('utf-8')).will_return(8),
         request.recv(7).will_return('000003:'.encode('utf-8')),
-        request.recv(3).will_return('bye'.encode('utf-8')),
+        request.recv(1024).will_return('bye'.encode('utf-8')),
         and_result=(7+9+7+9+7+3, 2+4+8))
     
 @lancelot.verifiable
@@ -126,12 +126,12 @@ def responder_handles_errors():
     spec.should_collaborate_with(
         request.send('Slim -- V0.0\n'.encode('utf-8')).will_return(2),
         request.recv(7).will_return('000009:'.encode('utf-8')),
-        request.recv(9).will_return('[000000:]'.encode('utf-8')),
+        request.recv(1024).will_return('[000000:]'.encode('utf-8')),
         instructions.execute(Anything(), 
                              Anything()).will_raise(UnpackingError('mint')),
         request.send(unpacking_error.encode('utf-8')).will_return(6),
         request.recv(7).will_return('000003:'.encode('utf-8')),
-        request.recv(3).will_return('bye'.encode('utf-8')),
+        request.recv(1024).will_return('bye'.encode('utf-8')),
         and_result=(7+9+7+3, 2+6))
 
 if __name__ == '__main__':
