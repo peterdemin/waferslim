@@ -23,6 +23,25 @@ import datetime, threading
 
 __THREADLOCAL = threading.local()
 
+class TableTableConstants(object):
+    ''' String constants for returning results from a TableTable '''
+    @classmethod
+    def cell_no_change(cls):
+        ''' Leave the cell uncoloured '''
+        return ''
+    @classmethod
+    def cell_correct(cls):
+        ''' Colour the cell green '''
+        return 'pass'
+    @classmethod
+    def cell_incorrect(cls, actual_value):
+        ''' Colour the cell red and provide an actual_value to display '''
+        return str(actual_value)
+    @classmethod
+    def cell_error(cls, error_details):
+        ''' Colour the cell yello and display the error_details '''
+        return 'error:%s' % str(error_details)
+
 class Converter(object):
     ''' Base class for converting to/from strings from/to python types'''
     

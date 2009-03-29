@@ -17,11 +17,7 @@ This test fails as the code for calculating scores is not implemented:
 all the "score" cells in the second row of the table will be coloured red
 and contain the text "NOT IMPLEMENTED". 
 '''
-
-_NO_CHANGE = '' # Leave the cell uncoloured
-_CORRECT = 'pass' # Colour the cell green
-_INCORRECT = '%s' # Colour the cell red and set its contents
-_ERROR = 'error:%s' # Colour the cell yellow and set its contents
+from waferslim.converters import TableTableConstants
 
 class Bowling(object):
     ''' Class to be the system-under-test in fitnesse. '''
@@ -41,13 +37,14 @@ class Bowling(object):
             game.roll(roll)
         score_differences = [self._differs(i, expected_scores, actual_scores) \
                              for i in range(0, len(expected_scores)) ]
-        return [[_NO_CHANGE for roll in rolls], score_differences]
+        return [[TableTableConstants.cell_no_change() \
+                 for roll in rolls], score_differences]
     
     def _differs(self, at_position, expected, actual):
         ''' Determine if expected and actual results at_position match''' 
         if expected[at_position] == actual[at_position]:
-            return _CORRECT
-        return _INCORRECT % actual[at_position]
+            return TableTableConstants.cell_correct()
+        return TableTableConstants.cell_incorrect(actual[at_position])
 
 class BowlingGame(object):
     ''' A bowling game -- scoring is not implemented ;-) '''

@@ -5,7 +5,8 @@ BDD-style Lancelot specifications for the behaviour of the core library classes
 from waferslim.converters import register_converter, converter_for, \
     convert_arg, convert_result, Converter, StrConverter, \
     TrueFalseConverter, YesNoConverter, FromConstructorConverter, \
-    DateConverter, TimeConverter, DatetimeConverter, IterableConverter
+    DateConverter, TimeConverter, DatetimeConverter, IterableConverter, \
+    TableTableConstants
 import lancelot, datetime, threading
 from lancelot.comparators import FloatValue, Type
 
@@ -303,6 +304,17 @@ def convert_result_behaviour():
 
     spec = lancelot.Spec(convert_result)
     spec.__call__(using=None).should_raise(TypeError)
+    
+@lancelot.verifiable
+def tabletable_constant_values():
+    ''' Check TableTable constants for fitnesse cell-by-cell results '''
+    spec = lancelot.Spec(TableTableConstants)
+    spec.cell_no_change().should_be('')
+    spec.cell_correct().should_be('pass')
+    spec.cell_incorrect(23).should_be('23')
+    spec.cell_incorrect(None).should_be('None')
+    spec.cell_error('Erk').should_be('error:Erk')
+    spec.cell_error(-1).should_be('error:-1')
     
 if __name__ == '__main__':
     lancelot.verify()
