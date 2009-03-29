@@ -81,7 +81,8 @@ class WaferSlimServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
             self.shutdown = lambda: self._up and self._up.pop() or self._up
             self.serve_forever = self._serve_until_shutdown
         
-        prestart_msg = "Starting server with options: %s" % options
+        prestart_msg = "Starting server v%s with options: %s" % \
+                        (waferslim.__version__ ,options)
         logging.getLogger(_LOGGER_NAME).info(prestart_msg)
         
         server_address = (options.inethost, int(options.port))
@@ -171,7 +172,6 @@ def start_server():
     _setup_syspath(options)
     _setup_encoding(options)
     _setup_port(options, args)
-    options.version = waferslim.__version__
     WaferSlimServer(options).serve_forever()
 
 if __name__ == '__main__':
