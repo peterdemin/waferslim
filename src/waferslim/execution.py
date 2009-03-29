@@ -202,7 +202,7 @@ class ExecutionContext(object):
             unqualified_name = fully_qualified_name[dot_pos + 1:]
             self._import_module(parent_module)
             return self._import(fully_qualified_name, 
-                                fromlist=[unqualified_name])
+                                fromlist=[str(unqualified_name)])
     
     def _import(self, *args, **kwds):
         ''' If module has already been imported, return it. Otherwise delegate

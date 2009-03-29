@@ -25,6 +25,8 @@ def base_converter_to_string():
     fake = Fake('Six bottles of Chateau Latour')
     spec = lancelot.Spec(Converter())
     spec.to_string(fake).should_be(fake.str_value)
+    spec.to_string('brown ale').should_be('brown ale')
+    spec.to_string(u'I hope sir was not overdoing it').should_be(Type(unicode))
 
 @lancelot.verifiable
 def base_converter_from_string():

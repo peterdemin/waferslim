@@ -47,6 +47,8 @@ class Converter(object):
     
     def to_string(self, value):
         ''' Use default str() to convert from a value into a string '''
+        if isinstance(value, str) or isinstance(value, unicode):
+            return value
         return str(value)
     
     def from_string(self, value):

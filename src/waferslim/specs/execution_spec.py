@@ -126,15 +126,20 @@ class ExecutionContextBehaviour(object):
     @lancelot.verifiable
     def uses_added_type_context(self):
         ''' add_type_context() should allow classes to be found 
-        without fully-dot-qualified prefixes'''
+        without fully-dot-qualified prefixes. A unicode param may be passed.'''
         ctx = ExecutionContext()
+        test_case_type = ctx.get_type('unittest.TestCase')
         spec = lancelot.Spec(ctx)
         spec.get_type('TestCase').should_raise(TypeError)
         
         spec.when(spec.add_type_prefix('unittest'))
         spec.then(spec.get_type('TestCase')).should_not_raise(TypeError)
-        spec.then(spec.get_type('TestCase')).should_be(
-            ctx.get_type('unittest.TestCase'))
+        spec.then(spec.get_type('TestCase')).should_be(test_case_type)
+        
+        second_ctx = ExecutionContext()
+        spec = lancelot.Spec(second_ctx)
+        spec.when(spec.add_type_prefix(u'waferslim.examples.decision_table'))
+        spec.then(spec.get_type(u'ShouldIBuyMilk')).should_not_raise(TypeError)
         
     @lancelot.verifiable
     def stores_symbol(self):
