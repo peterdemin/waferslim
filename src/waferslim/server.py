@@ -35,7 +35,7 @@ from optparse import OptionParser
 import waferslim.protocol
 
 _LOGGER_NAME = 'WaferSlimServer'
-_ALL_LOGGER_NAMES = (_LOGGER_NAME, 'Instructions')
+_ALL_LOGGER_NAMES = (_LOGGER_NAME, 'Instructions', 'Execution')
 
 class SlimRequestHandler(SocketServer.BaseRequestHandler, 
                          waferslim.protocol.RequestResponder):
@@ -49,7 +49,7 @@ class SlimRequestHandler(SocketServer.BaseRequestHandler,
         self.info('Handling request from %s' % from_addr)
         
         try:
-            received, sent = self.respond_to_request()
+            received, sent = self.respond_to_request(isolate_imports=SlimRequestHandler.ISOLATE_IMPORTS)
             done_msg = 'Done with %s: %s bytes received, %s bytes sent'
             self.info(done_msg % (from_addr, received, sent))
         except Exception, error:
@@ -72,6 +72,7 @@ class WaferSlimServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     def __init__(self, options):
         ''' Initialise socket server on host and port, with logging '''
         self._keepalive = options.keepalive
+        SlimRequestHandler.ISOLATE_IMPORTS = options.keepalive
         if options.verbose:
             for name in _ALL_LOGGER_NAMES:
                 logging.getLogger(name).setLevel(logging.DEBUG)

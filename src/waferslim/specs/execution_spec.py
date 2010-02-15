@@ -33,33 +33,66 @@ class ExecutionContextBehaviour(object):
         
         lancelot.Spec(sys.path).it().should_not_contain(path)
         
+        execution_context.cleanup_imports()
+        
     @lancelot.verifiable
-    def get_imported_module(self):
+    def get_isolated_imported_module(self):
         ''' get_module() should return a requested module, which should not
-        then exist in sys.modules if it has been dynamically loaded.
+        then exist in sys.modules if it has been loaded isolated.
         The same module should be returned on successive invocations. 
         The same module should not be returned from different contexts '''
         
-        same_context = ExecutionContext()
+        same_context = ExecutionContext(isolate_imports=True)
         same_context.add_import_path(self._nonsrc_path(same_context))
-        different_context = ExecutionContext()
+        different_context = ExecutionContext(isolate_imports=True)
         different_context.add_import_path(self._nonsrc_path(different_context))
-        for name in ('import_me', 
+        for mod in ('import_me', 
                      'module_with_state'):
             spec = lancelot.Spec(same_context)
-            spec.get_module(name).should_be(Type(types.ModuleType))
+            spec.get_module(mod).should_be(Type(types.ModuleType))
 
-            same_module = same_context.get_module(name)
-            spec.get_module(name).should_be(SameAs(same_module))
+            same_module = same_context.get_module(mod)
+            spec.get_module(mod).should_be(SameAs(same_module))
             
             sys_spec = lancelot.Spec(sys.modules)
-            sys_spec.it().should_not_contain(name)
+            sys_spec.it().should_not_contain(mod)
         
-            different_module = different_context.get_module(name)
-            spec.get_module(name).should_not_be(SameAs(different_module))
+            different_module = different_context.get_module(mod)
+            spec.get_module(mod).should_not_be(SameAs(different_module))
+            
+            same_context.cleanup_imports()
+            different_context.cleanup_imports()
 
     @lancelot.verifiable
-    def get_module_type(self):
+    def get_unisolated_imported_module(self):
+        ''' get_module() should return a requested module, which should 
+        remain in sys.modules as it has been loaded unisolated.
+        The same module should be returned on successive invocations. 
+        The same module should be returned from different contexts '''
+        
+        same_context = ExecutionContext()
+        same_context.add_import_path(self._nonsrc_path(same_context))
+        different_context = ExecutionContext(isolate_imports=False)
+        different_context.add_import_path(self._nonsrc_path(different_context))
+        for mod in ('import_me', 
+                     'module_with_state'):
+            spec = lancelot.Spec(same_context)
+            spec.get_module(mod).should_be(Type(types.ModuleType))
+
+            same_module = same_context.get_module(mod)
+            spec.get_module(mod).should_be(SameAs(same_module))
+            
+            sys_spec = lancelot.Spec(sys.modules)
+            sys_spec.it().should_contain(mod)
+        
+            different_module = different_context.get_module(mod)
+            spec.get_module(mod).should_be(SameAs(different_module))
+            
+            same_context.cleanup_imports()
+            different_context.cleanup_imports()
+
+    @lancelot.verifiable
+    def get_isolated_module_type(self):
         ''' get_type() should return a requested module type, given the fully
         qualified name including module. The same type should be returned on 
         successive invocations. The same type should not be returned from
@@ -67,18 +100,18 @@ class ExecutionContextBehaviour(object):
         each context'''
         _types = {'StateAlteringClass':'module_with_state'}
         
-        execution_context = ExecutionContext()
+        execution_context = ExecutionContext(isolate_imports=True)
         execution_context.add_import_path(self._nonsrc_path(execution_context))
-        for name, _type in _types.items():
-            fully_qualified_name = '%s.%s' % (_type, name) 
+        for _type, mod in _types.items():
+            fully_qualified_name = '%s.%s' % (mod, _type) 
             same_type = execution_context.get_type(fully_qualified_name)
 
-            lancelot.Spec(same_type.__name__).it().should_be(name)
+            lancelot.Spec(same_type.__name__).it().should_be(_type)
 
             spec = lancelot.Spec(execution_context)
             spec.get_type(fully_qualified_name).should_be(SameAs(same_type))
             
-            other_context = ExecutionContext()
+            other_context = ExecutionContext(isolate_imports=True)
             other_context.add_import_path(self._nonsrc_path(other_context))
             different_type = other_context.get_type(fully_qualified_name)
             spec.get_type(fully_qualified_name).should_not_be(
@@ -90,31 +123,76 @@ class ExecutionContextBehaviour(object):
             spec.then(spec.get_state()).should_contain(1)
             spec.then(instances[1].get_state).should_not_contain(1)
 
+            execution_context.cleanup_imports()
+            other_context.cleanup_imports()
+
+    @lancelot.verifiable
+    def get_unisolated_module_type(self):
+        ''' get_type() should return a requested module type, given the fully
+        qualified name including module. The same type should be returned on 
+        successive invocations. The same type should also be returned from
+        different contexts. State in a module should not be isolated within 
+        each context'''
+        _types = {'StateAlteringClass':'module_with_state'}
+        
+        execution_context = ExecutionContext(isolate_imports=False)
+        execution_context.add_import_path(self._nonsrc_path(execution_context))
+        for _type, mod in _types.items():
+            fully_qualified_name = '%s.%s' % (mod, _type) 
+            same_type = execution_context.get_type(fully_qualified_name)
+
+            lancelot.Spec(same_type.__name__).it().should_be(_type)
+
+            spec = lancelot.Spec(execution_context)
+            spec.get_type(fully_qualified_name).should_be(SameAs(same_type))
+            
+            other_context = ExecutionContext(isolate_imports=False)
+            other_context.add_import_path(self._nonsrc_path(other_context))
+            different_type = other_context.get_type(fully_qualified_name)
+            spec.get_type(fully_qualified_name).should_be(
+                                                SameAs(different_type))
+            
+            instances = same_type(), different_type()
+            spec = lancelot.Spec(instances[0])
+            spec.when(spec.alter_state())
+            spec.then(spec.get_state()).should_contain(1)
+            spec.then(instances[1].get_state).should_contain(1)
+            
+            execution_context.cleanup_imports()
+            other_context.cleanup_imports()
+
     @lancelot.verifiable
     def handles_builtins(self):
         ''' get_type() should handle builtin types and get_module() should
-        not affect sys.modules when module was already loaded, e.g. builtins'''
-        spec = lancelot.Spec(ExecutionContext())
+        not affect sys.modules when module was already loaded, e.g. __builtin__'''
+        context = ExecutionContext()
+        spec = lancelot.Spec(context)
         spec.get_type('__builtin__.dict').should_be(dict)
         spec.get_type('__builtin__.str').should_be(str)
         spec.get_module('__builtin__').should_be(SameAs(sys.modules['__builtin__']))
+        
+        context.cleanup_imports()
     
     @lancelot.verifiable
     def raises_exceptions(self):
         ''' Requesting a non-existent module should raise ImportError.
         Requesting a non-existent type should raise TypeError.'''
-        spec = lancelot.Spec(ExecutionContext())
+        context = ExecutionContext()
+        spec = lancelot.Spec(context)
         spec.get_module('no.such.module').should_raise(ImportError)
         spec.get_type('no.such.module.Type').should_raise(ImportError)
         spec.get_type('NoSuchType').should_raise(TypeError)
         spec.get_type('waferslim.Mint').should_raise(TypeError)
+        
+        context.cleanup_imports()
         
     @lancelot.verifiable
     def stores_instance(self):
         ''' store_instance(name, value) should put the name,value pair in the
         instances dict where it can be retrieved by get_instance(name). 
         instances should be isolated across execution contexts'''
-        spec = lancelot.Spec(ExecutionContext())
+        context = ExecutionContext()
+        spec = lancelot.Spec(context)
         spec.get_instance('wafer thin').should_raise(KeyError)
 
         spec.when(spec.store_instance('wafer thin', 'mint'))
@@ -122,6 +200,8 @@ class ExecutionContextBehaviour(object):
 
         spec = lancelot.Spec(ExecutionContext())
         spec.get_instance('wafer thin').should_raise(KeyError)
+        
+        context.cleanup_imports()
 
     @lancelot.verifiable
     def uses_added_type_context(self):
@@ -141,19 +221,26 @@ class ExecutionContextBehaviour(object):
         spec.when(spec.add_type_prefix(u'waferslim.examples.decision_table'))
         spec.then(spec.get_type(u'ShouldIBuyMilk')).should_not_raise(TypeError)
         
+        ctx.cleanup_imports()
+        
     @lancelot.verifiable
     def stores_symbol(self):
         ''' store_symbol(name, value) should put the name,value pair in the
         symbols dict where it can be retrieved by get_symbol(name). 
         symbols should be isolated across execution contexts'''
-        spec = lancelot.Spec(ExecutionContext())
+        ctx1 = ExecutionContext()
+        spec = lancelot.Spec(ctx1)
         spec.get_symbol('another_bucket').should_raise(KeyError)
 
         spec.when(spec.store_symbol('another_bucket', 'for monsieur'))
         spec.then(spec.get_symbol('another_bucket')).should_be('for monsieur')
 
-        spec = lancelot.Spec(ExecutionContext())
+        ctx2 = ExecutionContext()
+        spec = lancelot.Spec(ctx2)
         spec.get_symbol('another_bucket').should_raise(KeyError)
+        
+        ctx1.cleanup_imports()
+        ctx2.cleanup_imports()
 
 lancelot.grouping(ExecutionContextBehaviour)
 
@@ -196,6 +283,7 @@ class InstructionsBehaviour(object):
                 mock_fn.instruction_for(a_list[1]).will_return(mock_call),
                 mock_call.execute(ctx, results)
             )
+        ctx.cleanup_imports()
 
     @lancelot.verifiable
     def handles_execute_exceptions(self):
@@ -226,6 +314,7 @@ class InstructionsBehaviour(object):
         finally:
             # Put logger back to how it was
             logger.setLevel(log_level)
+        ctx.cleanup_imports()
 
 lancelot.grouping(InstructionsBehaviour)
 

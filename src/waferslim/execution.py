@@ -122,13 +122,13 @@ class ParamsConverter(object):
    
 class ExecutionContext(object):
     ''' Contextual execution environment to allow simultaneous code executions
-    to take place in isolation from each other.'''
+    to take place in isolation from each other - see keepalive startup arg.'''
     
     _SEMAPHORE = threading.Semaphore()
     _REAL_IMPORT = __builtin__.__import__
     _SYSPATH = sys.path
     
-    def __init__(self, params_converter = ParamsConverter):
+    def __init__(self, params_converter = ParamsConverter, isolate_imports=False):
         ''' Set up the isolated context '''
         # Fitnesse-specific... 
         self._instances = {} 
@@ -137,6 +137,8 @@ class ExecutionContext(object):
         self._type_prefixes = []
         self._params_converter = params_converter(self)
         # Implementation-specific...
+        self._logger=logging.getLogger('Execution')
+        self._isolate_imports = isolate_imports
         self._imported = {}
         self._modules = {}
         self._modules.update(sys.modules)
@@ -177,20 +179,26 @@ class ExecutionContext(object):
         imported modules from sys.modules '''
         ExecutionContext._SEMAPHORE.acquire()
         try:
-            __builtin__.__import__ = self._import
+            if self._isolate_imports: __builtin__.__import__ = self._import
             sys.path = self._path
             sys.path.extend(ExecutionContext._SYSPATH)
             
             return self._import_module(fully_qualified_name)
         finally:
-            __builtin__.__import__ = ExecutionContext._REAL_IMPORT
             sys.path = ExecutionContext._SYSPATH
+            if self._isolate_imports: 
+                __builtin__.__import__ = ExecutionContext._REAL_IMPORT
+                self.cleanup_imports()
+            ExecutionContext._SEMAPHORE.release()
+                
+    def cleanup_imports(self):
+        ''' Clean-up imports '''
+        for mod in self._imported.keys():
             try:
-                for mod in self._imported.keys():
-                    del(sys.modules[mod])
-                self._imported = {}
-            finally:
-                ExecutionContext._SEMAPHORE.release()
+                del(sys.modules[mod])
+            except KeyError:
+                pass
+            self._imported = {}
     
     def _import_module(self, fully_qualified_name):
         ''' Actually perform nested module import / lookup of a module '''
@@ -211,6 +219,9 @@ class ExecutionContext(object):
             return self._modules[args[0]]
         except KeyError:
             pass
+        self._logger.info('Importing %s%s' 
+                           % (self._isolate_imports and 'isolated ' or '', 
+                              args[0]))
         mod = ExecutionContext._REAL_IMPORT(*args, **kwds)
         self._imported[mod.__name__] = mod
         self._modules[mod.__name__] = mod
