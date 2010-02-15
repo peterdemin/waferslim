@@ -1,5 +1,5 @@
 ''' Example of a Slim DecisionTable -- 
-based on http://fitnesse.org/FitNesse.SliM.DecisionTable
+based on http://fitnesse.org/FitNesse.UserGuide.SliM.DecisionTable
 
 Fitnesse table markup:
 

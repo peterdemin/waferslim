@@ -1,6 +1,6 @@
 ''' Example code for demonstrating value comparisons and symbols -- 
-based on http://fitnesse.org/FitNesse.SliM.ValueComparisons
-and http://fitnesse.org/FitNesse.SliM.SymbolsInTables.
+based on http://fitnesse.org/FitNesse.UserGuide.SliM.ValueComparisons
+and http://fitnesse.org/FitNesse.UserGuide.SliM.SymbolsInTables.
 Hopefully this example demonstrates that there's no extra work required for
 your own code if you wish to use value comparisons or symbols.
 

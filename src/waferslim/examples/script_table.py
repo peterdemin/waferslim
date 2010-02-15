@@ -1,5 +1,5 @@
 ''' Example of a Slim ScriptTable -- 
-based on http://fitnesse.org/FitNesse.SliM.ScriptTable.
+based on http://fitnesse.org/FitNesse.UserGuide.SliM.ScriptTable
 Note that due a limitation of the fitnesse Java code, script tables 
 require bool conversion with TrueFalseConverter - however this is the
 default bool converter in waferslim.
@@ -9,8 +9,7 @@ Fitnesse table markup:
 |import|
 |waferslim.examples.script_table|
 
-|script|
-|start|login dialog driver|Bob|xyzzy|
+|script|login dialog driver|Bob|xyzzy|
 |login with username|Bob|and password|xyzzy|
 |check|login message|Bob logged in.|
 |reject|login with username|Bob|and password|bad password|

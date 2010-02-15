@@ -1,6 +1,6 @@
 '''
 Classes for converting to/from strings and python types, in a manner similar
-to that described at http://fitnesse.org/FitNesse.SliM.CustomTypes.
+to that described at http://fitnesse.org/FitNesse.UserGuide.SliM.CustomTypes.
 
 Import this module and use the method decorators 
     convert_arg(to_type=...) 
@@ -56,8 +56,8 @@ class Converter(object):
         msg = 'from_string(%s) must be implemented in subclasses' % value
         raise NotImplementedError(msg)
 
-_DEFAULT_CONVERTER = Converter() # Use as default (when no type-specific 
-                                  # instance is present in converters)  
+# Default when no type-specific instance is present
+_DEFAULT_CONVERTER = Converter()   
 
 class StrConverter(Converter):
     ''' "Converter" (really a Null-Converter) to/from str type.

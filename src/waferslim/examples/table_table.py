@@ -1,5 +1,5 @@
 ''' Example of a Slim 'Table' Table -- 
-based on http://fitnesse.org/FitNesse.SliM.TableTable.
+based on http://fitnesse.org/FitNesse.UserGuide.SliM.TableTable
 This kind of table has to do all the calculation work for determining whether
 an actual result for a cell is the same as the expected result, and passes
 back cell-by-cell result values.

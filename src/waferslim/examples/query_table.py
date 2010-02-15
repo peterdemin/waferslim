@@ -1,5 +1,5 @@
 ''' Example of a Slim QueryTable and a custom Converter -- 
-based on http://fitnesse.org/FitNesse.SliM.QueryTable
+based on http://fitnesse.org/FitNesse.UserGuide.SliM.QueryTable
 
 Fitnesse table markup:
 
