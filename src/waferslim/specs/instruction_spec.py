@@ -92,7 +92,7 @@ class MakeExceptionBehaviour(object):
                        ]
         wrong_args = ('some unwanted', 'constructor args')
         cause = 'COULD_NOT_INVOKE_CONSTRUCTOR FakeClass ' \
-                + 'default __new__ takes no parameters'
+                + 'object.__new__() takes no parameters'
         execution_context = lancelot.MockSpec(name='execution_context')
         results = lancelot.MockSpec(name='results')
         a_class = ClassWithNoArgs
