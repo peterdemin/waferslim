@@ -82,7 +82,7 @@ def request_responder_behaviour():
     spec = lancelot.Spec(request_responder)
     spec.respond_to_request(instructions=lambda data: instructions)
     spec.should_collaborate_with(
-        request.send('Slim -- V0.0\n'.encode('utf-8')).will_return(2),
+        request.send('Slim -- V0.1\n'.encode('utf-8')).will_return(2),
         request.recv(7).will_return('000009:'.encode('utf-8')),
         request.recv(1024).will_return('[000000:]'.encode('utf-8')),
         instructions.execute(Type(ExecutionContext), Type(Results)),
@@ -98,7 +98,7 @@ def request_responder_behaviour():
     spec = lancelot.Spec(request_responder)
     spec.respond_to_request(instructions=lambda data: instructions)
     spec.should_collaborate_with(
-        request.send('Slim -- V0.0\n'.encode('utf-8')).will_return(2),
+        request.send('Slim -- V0.1\n'.encode('utf-8')).will_return(2),
         request.recv(7).will_return('000009:'.encode('utf-8')),
         request.recv(1024).will_return('[000000:]'.encode('utf-8')),
         instructions.execute(Type(ExecutionContext), Type(Results)),
@@ -124,7 +124,7 @@ def responder_handles_errors():
         + '[000002:000014:UnpackingError:000053:' \
         + '__EXCEPTION__: message:<<MALFORMED_INSTRUCTION mint>>:]:]'
     spec.should_collaborate_with(
-        request.send('Slim -- V0.0\n'.encode('utf-8')).will_return(2),
+        request.send('Slim -- V0.1\n'.encode('utf-8')).will_return(2),
         request.recv(7).will_return('000009:'.encode('utf-8')),
         request.recv(1024).will_return('[000000:]'.encode('utf-8')),
         instructions.execute(Anything(), 

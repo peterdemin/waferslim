@@ -12,7 +12,7 @@ from waferslim import WaferSlimException
 from waferslim.execution import Results, ExecutionContext, Instructions
 
 BYTE_ENCODING = 'utf-8' #can be altered by server startup options
-_VERSION = 'Slim -- V0.0\n'
+_VERSION = 'Slim -- V0.1\n'
 _START_CHUNK = '['
 _END_CHUNK = ']'
 _SEPARATOR = ':'
