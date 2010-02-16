@@ -98,20 +98,26 @@ class Call(Instruction):
         try:
             instance = execution_context.get_instance(params[0])
         except KeyError:
-            results.failed(self, '%s %s' % (_NO_INSTANCE, params[0]))
-            return (None, False)
+            try:
+                target = execution_context.get_library_method(params[1])
+                return self._result(execution_context, target, params)
+            except AttributeError:
+                results.failed(self, '%s %s' % (_NO_INSTANCE, params[0]))
+                return (None, False)
         
         try:
             target = self._target_for(instance, params[1])
         except AttributeError:
-            cause = '%s %s %s' % (_NO_METHOD, params[1], 
-                                  type(instance).__name__)
-            results.failed(self, cause)
-            return (None, False)
+            try:
+                target = execution_context.get_library_method(params[1])
+                return self._result(execution_context, target, params)
+            except AttributeError:
+                cause = '%s %s %s' % (_NO_METHOD, params[1], 
+                                      type(instance).__name__)
+                results.failed(self, cause)
+                return (None, False)
         
-        args = execution_context.to_args(params, 2)
-        result = target(*args)
-        return (result, True)
+        return self._result(execution_context, target, params)
     
     def _target_for(self, instance, method_name):
         ''' Return an instance's named method to use as a call target. 
@@ -121,6 +127,11 @@ class Call(Instruction):
             return getattr(instance, camel_case_to_pythonic(method_name))
         except AttributeError:
             return getattr(instance, method_name)
+        
+    def _result(self, execution_context, target, params):
+        args = execution_context.to_args(params, 2)
+        result = target(*args)
+        return (result, True)
 
 class CallAndAssign(Call):
     ''' A "callAndAssign <symbol>, <instance>, <function>, <args>..." 

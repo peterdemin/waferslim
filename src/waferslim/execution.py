@@ -131,7 +131,8 @@ class ExecutionContext(object):
     def __init__(self, params_converter = ParamsConverter, isolate_imports=False):
         ''' Set up the isolated context '''
         # Fitnesse-specific... 
-        self._instances = {} 
+        self._instances = {}
+        self._libraries = {} 
         self._symbols = {} 
         self._path = []
         self._type_prefixes = []
@@ -227,9 +228,31 @@ class ExecutionContext(object):
         self._modules[mod.__name__] = mod
         return mod
     
+    def get_library_method(self, name):
+        ''' Get a method from the library '''
+        self._logger.debug('Getting library method %s' % name)
+        for instance in self._libraries.values():
+            if hasattr(instance, name):
+                return getattr(instance, name)
+        err = 'No library method %s found. Are you missing a Library table?' 
+        raise AttributeError(err % name)
+    
+    def _store_library_instance(self, name, value):
+        ''' Add methods in a class instance to the library '''
+        self._logger.debug('Storing library instance %s=%s' % (name, value))
+        self._libraries[name] = value
+    
+    def _is_library(self, name):
+        ''' Determine whether an instance name represents a library '''
+        return name.lower().startswith("library")
+    
     def store_instance(self, name, value):
         ''' Add a name=value pair to the context instances '''
-        self._instances[name] = value
+        if (self._is_library(name)):
+            self._store_library_instance(name, value)
+        else:
+            self._logger.debug('Storing instance %s=%s' % (name, value))
+            self._instances[name] = value
 
     def get_instance(self, name):
         ''' Get value from a name=value pair in the context instances '''
@@ -241,6 +264,7 @@ class ExecutionContext(object):
     
     def store_symbol(self, name, value):
         ''' Add a name=value pair to the context symbols '''
+        self._logger.debug('Storing symbol %s=%s' % (name, value))
         self._symbols[name] = value
 
     def get_symbol(self, name):

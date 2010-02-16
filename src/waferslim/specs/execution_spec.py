@@ -204,6 +204,28 @@ class ExecutionContextBehaviour(object):
         context.cleanup_imports()
 
     @lancelot.verifiable
+    def stores_libraries(self):
+        ''' store_instance(name, value) should put the name,value pair in the
+        libraries dict where it can be retrieved by get_library_method(name). 
+        libraries should be isolated across execution contexts'''
+        class DeathKnocksAtTheDoor(object):
+            def do_come_in_mr_death(self):
+                return "won't you have a cup of tea?"
+        death_knocks_at_the_door = DeathKnocksAtTheDoor()
+        context = ExecutionContext()
+        spec = lancelot.Spec(context)
+        spec.get_library_method('do_come_in_mr_death').should_raise(AttributeError)
+
+        context.store_instance('libraryXYZ', death_knocks_at_the_door)
+        spec = lancelot.Spec(context.get_library_method('do_come_in_mr_death'))
+        spec.__call__().should_be(death_knocks_at_the_door.do_come_in_mr_death())
+
+        spec = lancelot.Spec(ExecutionContext())
+        spec.get_library_method('do_come_in_mr_death').should_raise(AttributeError)
+        
+        context.cleanup_imports()
+
+    @lancelot.verifiable
     def uses_added_type_context(self):
         ''' add_type_context() should allow classes to be found 
         without fully-dot-qualified prefixes. A unicode param may be passed.'''
