@@ -241,6 +241,27 @@ class ExecutionContextBehaviour(object):
         
         ctx1.cleanup_imports()
         ctx2.cleanup_imports()
+    
+    @lancelot.verifiable
+    def import_twisted(self):
+        ''' Bug #497245: cannot import twisted '''
+        from os.path import join, exists
+        for location in sys.path:
+            pkg=join(location, join('twisted', '__init__.py'))
+            if exists(pkg) \
+            or exists(pkg + 'c') \
+            or exists(pkg + 'o'):
+                twisted_found=True
+                break 
+        lancelot.Spec(twisted_found).it().should_be(True)
+        context = ExecutionContext(isolate_imports=False) #TODO: isolated?!
+        context.add_import_path(self._nonsrc_path(context))
+        spec = lancelot.Spec(context)
+        
+        spec.get_module('import_twisted').should_be(Type(types.ModuleType))
+        spec.get_module('twisted').should_be(Type(types.ModuleType))
+        
+        context.cleanup_imports()
 
 lancelot.grouping(ExecutionContextBehaviour)
 
