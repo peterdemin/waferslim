@@ -99,7 +99,7 @@ class ParamsConverter(object):
     ''' Converter from (possibly nested) list of strings (possibly symbols)
     into (possibly nested) tuple of string arguments for invocation''' 
     
-    _SYMBOL_PATTERN = re.compile('\\$([a-zA-Z]\\w*)', re.UNICODE)
+    _SYMBOL_PATTERN = re.compile('\\$([a-zA-Z]\\w*)+', re.UNICODE)
     
     def __init__(self, execution_context):
         ''' Provide the execution_context for symbol lookup '''
@@ -114,11 +114,12 @@ class ParamsConverter(object):
         ''' Lookup (recursively if required) a possible symbol '''
         if isinstance(possible_symbol, list):
             return self.to_args(possible_symbol, 0)
-        
-        match = ParamsConverter._SYMBOL_PATTERN.match(possible_symbol)
+        return ParamsConverter._SYMBOL_PATTERN.sub(self._match, possible_symbol)
+    
+    def _match(self, match):
+        ''' Actually perform the substitution identified by the match '''
         if match:
-            return self._execution_context.get_symbol(match.groups()[0])
-        return possible_symbol
+            return str(self._execution_context.get_symbol(match.groups()[0]))
    
 class ExecutionContext(object):
     ''' Contextual execution environment to allow simultaneous code executions
@@ -269,7 +270,9 @@ class ExecutionContext(object):
 
     def get_symbol(self, name):
         ''' Get value from a name=value pair in the context symbols '''
-        return self._symbols[name]
+        value = self._symbols[name]
+        self._logger.debug('Restoring symbol %s=%s' % (name, value))
+        return value
     
     def to_args(self, params, from_position):
         ''' Delegate args construction to the ParamsConverter '''

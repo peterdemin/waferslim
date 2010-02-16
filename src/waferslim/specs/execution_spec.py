@@ -442,6 +442,20 @@ def params_converter_behaviour():
         execution_context.get_symbol('b_').will_return('Y'),
         and_result=(('X', 'Y', 'C$'))
         )
+
+    execution_context = lancelot.MockSpec('execution_context')
+    spec = lancelot.Spec(ParamsConverter(execution_context))
+    spec.to_args(['id=$id'], 0).should_collaborate_with(
+        execution_context.get_symbol('id').will_return('20'),
+        and_result=(('id=20',))
+        )
+
+    execution_context = lancelot.MockSpec('execution_context')
+    spec = lancelot.Spec(ParamsConverter(execution_context))
+    spec.to_args(['$int'], 0).should_collaborate_with(
+        execution_context.get_symbol('int').will_return(20),
+        and_result=(('20',))
+        )
     
     execution_context = lancelot.MockSpec('execution_context')
     spec = lancelot.Spec(ParamsConverter(execution_context))
