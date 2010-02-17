@@ -1,13 +1,15 @@
 '''
 BDD-style Lancelot specifications for the behaviour of the core library classes
 '''
+from waferslim import WaferSlimException
 
 import lancelot, logging, os, sys, types
-from lancelot.comparators import Type, SameAs
+from lancelot.comparators import Type, SameAs, Anything, Contain
 from waferslim.execution import ExecutionContext, Results, Instructions, \
                                 instruction_for, ParamsConverter
 from waferslim.instructions import Make, Import, Call, CallAndAssign, \
                                    Instruction
+from waferslim.specs.spec_classes import ClassWithNoArgs
 
 class ExecutionContextBehaviour(object):
     ''' Related Specs for ExecutionContext behaviour '''
@@ -226,6 +228,21 @@ class ExecutionContextBehaviour(object):
         spec.get_library_method('do_come_in_mr_death').should_be(None)
         
         context.cleanup_imports()
+        
+    @lancelot.verifiable
+    def warns_if_library_methods_may_pollute_tests(self):
+        ''' libraries with method names "execute" and "reset" may pollute test
+        results, since those methods are called for each row in a decision table '''
+        polluting_names = ['execute', 'reset']
+        for name in polluting_names:
+            logger = lancelot.MockSpec(name='logger')
+            context = ExecutionContext(logger=logger)
+            library = ClassWithNoArgs()
+            setattr(library, name, lambda: None)
+            spec = lancelot.Spec(context)
+            spec.store_instance('library', library).should_collaborate_with(
+                    logger.debug(Anything()),
+                    logger.warning(Contain('%s()' % name)))
 
     @lancelot.verifiable
     def gets_library_methods_from_fifo_stack(self):
@@ -275,20 +292,20 @@ class ExecutionContextBehaviour(object):
         symbols should be isolated across execution contexts'''
         ctx1 = ExecutionContext()
         spec = lancelot.Spec(ctx1)
-        spec.get_symbol('another_bucket').should_raise(KeyError)
+        spec.get_symbol('another_bucket').should_raise(WaferSlimException)
 
         spec.when(spec.store_symbol('another_bucket', 'for monsieur'))
         spec.then(spec.get_symbol('another_bucket')).should_be('for monsieur')
 
         ctx2 = ExecutionContext()
         spec = lancelot.Spec(ctx2)
-        spec.get_symbol('another_bucket').should_raise(KeyError)
+        spec.get_symbol('another_bucket').should_raise(WaferSlimException)
         
         ctx1.cleanup_imports()
         ctx2.cleanup_imports()
     
     @lancelot.verifiable
-    def import_twisted(self):
+    def imports_twisted(self):
         ''' Bug #497245: cannot import twisted '''
         from os.path import join, exists
         for location in sys.path:

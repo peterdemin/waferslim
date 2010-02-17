@@ -8,6 +8,7 @@ The latest source code is available at http://code.launchpad.net/waferslim.
 Copyright 2009 by the author(s). All rights reserved 
 '''
 import __builtin__, logging, re, sys, threading
+from waferslim import WaferSlimException
 from waferslim.instructions import Instruction, \
                                    Make, Call, CallAndAssign, Import
 from waferslim.converters import converter_for
@@ -129,7 +130,9 @@ class ExecutionContext(object):
     _REAL_IMPORT = __builtin__.__import__
     _SYSPATH = sys.path
     
-    def __init__(self, params_converter = ParamsConverter, isolate_imports=False):
+    def __init__(self, params_converter=ParamsConverter, 
+                 isolate_imports=False,
+                 logger=logging.getLogger('Execution')):
         ''' Set up the isolated context '''
         # Fitnesse-specific... 
         self._instances = {}
@@ -139,8 +142,8 @@ class ExecutionContext(object):
         self._type_prefixes = []
         self._params_converter = params_converter(self)
         # Implementation-specific...
-        self._logger=logging.getLogger('Execution')
         self._isolate_imports = isolate_imports
+        self._logger=logger
         self._imported = {}
         self._modules = {}
         self._modules.update(sys.modules)
@@ -237,9 +240,19 @@ class ExecutionContext(object):
                 return getattr(instance, name)
         return None
     
+    def warn_if_library_method_names_may_pollute_tests(self, library):
+        ''' log a warning msg if libraries have method names "execute" or "reset" 
+        since those methods are called for each row in a decision table '''
+        for name in ['execute', 'reset']:
+            if hasattr(library, name) \
+            and hasattr(getattr(library, name), '__call__'):
+                msg = '%s() in library %r may pollute Decision Table test results'
+                self._logger.warning(msg % (name, library)) 
+    
     def _store_library_instance(self, value):
         ''' Add methods in a class instance to the library '''
-        self._debug('Storing library instance %s' % value)
+        self._debug('Storing library instance %r' % value)
+        self.warn_if_library_method_names_may_pollute_tests(value)
         self._libraries.insert(0, value)
     
     def _is_library(self, name):
@@ -251,7 +264,7 @@ class ExecutionContext(object):
         if (self._is_library(name)):
             self._store_library_instance(value)
         else:
-            self._debug('Storing instance %s=%s' % (name, value))
+            self._debug('Storing instance %s=%r' % (name, value))
             self._instances[name] = value
 
     def get_instance(self, name):
@@ -267,14 +280,17 @@ class ExecutionContext(object):
     
     def store_symbol(self, name, value):
         ''' Add a name=value pair to the context symbols '''
-        self._debug('Storing symbol %s=%s' % (name, value))
+        self._debug('Storing symbol %s=%r' % (name, value))
         self._symbols[name] = value
 
     def get_symbol(self, name):
         ''' Get value from a name=value pair in the context symbols '''
-        value = self._symbols[name]
-        self._debug('Restoring symbol %s=%s' % (name, value))
-        return value
+        try:
+            value = self._symbols[name]
+            self._debug('Restoring symbol %s=%r' % (name, value))
+            return value
+        except KeyError:
+            raise WaferSlimException('Unknown symbol %s' % name)
     
     def to_args(self, params, from_position):
         ''' Delegate args construction to the ParamsConverter '''
