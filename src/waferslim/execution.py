@@ -221,7 +221,7 @@ class ExecutionContext(object):
             return self._modules[args[0]]
         except KeyError:
             pass
-        self._logger.info('Importing %s%s' 
+        self._debug('Importing %s%s' 
                            % (self._isolate_imports and 'isolated ' or '', 
                               args[0]))
         mod = ExecutionContext._REAL_IMPORT(*args, **kwds)
@@ -231,7 +231,7 @@ class ExecutionContext(object):
     
     def get_library_method(self, name):
         ''' Get a method from the library '''
-        self._logger.debug('Getting library method %s' % name)
+        self._debug('Getting library method %s' % name)
         for instance in self._libraries.__reversed__():
             if hasattr(instance, name):
                 return getattr(instance, name)
@@ -240,7 +240,7 @@ class ExecutionContext(object):
     
     def _store_library_instance(self, value):
         ''' Add methods in a class instance to the library '''
-        self._logger.debug('Storing library instance %s' % value)
+        self._debug('Storing library instance %s' % value)
         self._libraries.append(value)
     
     def _is_library(self, name):
@@ -252,7 +252,7 @@ class ExecutionContext(object):
         if (self._is_library(name)):
             self._store_library_instance(value)
         else:
-            self._logger.debug('Storing instance %s=%s' % (name, value))
+            self._debug('Storing instance %s=%s' % (name, value))
             self._instances[name] = value
 
     def get_instance(self, name):
@@ -265,15 +265,19 @@ class ExecutionContext(object):
     
     def store_symbol(self, name, value):
         ''' Add a name=value pair to the context symbols '''
-        self._logger.debug('Storing symbol %s=%s' % (name, value))
+        self._debug('Storing symbol %s=%s' % (name, value))
         self._symbols[name] = value
 
     def get_symbol(self, name):
         ''' Get value from a name=value pair in the context symbols '''
         value = self._symbols[name]
-        self._logger.debug('Restoring symbol %s=%s' % (name, value))
+        self._debug('Restoring symbol %s=%s' % (name, value))
         return value
     
     def to_args(self, params, from_position):
         ''' Delegate args construction to the ParamsConverter '''
         return self._params_converter.to_args(params, from_position)
+
+    def _debug(self, msg):
+        ''' Log a debug message '''
+        self._logger.debug(msg)
