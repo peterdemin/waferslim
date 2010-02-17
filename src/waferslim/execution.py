@@ -133,7 +133,7 @@ class ExecutionContext(object):
         ''' Set up the isolated context '''
         # Fitnesse-specific... 
         self._instances = {}
-        self._libraries = {} 
+        self._libraries = [] 
         self._symbols = {} 
         self._path = []
         self._type_prefixes = []
@@ -232,16 +232,16 @@ class ExecutionContext(object):
     def get_library_method(self, name):
         ''' Get a method from the library '''
         self._logger.debug('Getting library method %s' % name)
-        for instance in self._libraries.values():
+        for instance in self._libraries.__reversed__():
             if hasattr(instance, name):
                 return getattr(instance, name)
         err = 'No library method %s found. Are you missing a Library table?' 
         raise AttributeError(err % name)
     
-    def _store_library_instance(self, name, value):
+    def _store_library_instance(self, value):
         ''' Add methods in a class instance to the library '''
-        self._logger.debug('Storing library instance %s=%s' % (name, value))
-        self._libraries[name] = value
+        self._logger.debug('Storing library instance %s' % value)
+        self._libraries.append(value)
     
     def _is_library(self, name):
         ''' Determine whether an instance name represents a library '''
@@ -250,7 +250,7 @@ class ExecutionContext(object):
     def store_instance(self, name, value):
         ''' Add a name=value pair to the context instances '''
         if (self._is_library(name)):
-            self._store_library_instance(name, value)
+            self._store_library_instance(value)
         else:
             self._logger.debug('Storing instance %s=%s' % (name, value))
             self._instances[name] = value

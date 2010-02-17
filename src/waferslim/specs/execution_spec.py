@@ -11,7 +11,12 @@ from waferslim.instructions import Make, Import, Call, CallAndAssign, \
 
 class ExecutionContextBehaviour(object):
     ''' Related Specs for ExecutionContext behaviour '''
-    
+    class DeathKnocksAtTheDoor(object):
+        ''' Simple class to illustrate library method '''
+        def do_come_in_mr_death(self):
+            ''' Simple illustrative method '''
+            return "won't you have a drink?"
+            
     def _nonsrc_path(self, execution_context):
         ''' Path to non-src modules that are known to be outside sys.path '''
         slim_path = execution_context.get_module('waferslim').__path__[0]
@@ -205,23 +210,41 @@ class ExecutionContextBehaviour(object):
 
     @lancelot.verifiable
     def stores_libraries(self):
-        ''' store_instance(name, value) should put the name,value pair in the
-        libraries dict where it can be retrieved by get_library_method(name). 
+        ''' store_instance(library, value) should put the value with the
+        libraries where it can be retrieved by get_library_method(name). 
         libraries should be isolated across execution contexts'''
-        class DeathKnocksAtTheDoor(object):
-            def do_come_in_mr_death(self):
-                return "won't you have a cup of tea?"
-        death_knocks_at_the_door = DeathKnocksAtTheDoor()
+        mr_death = ExecutionContextBehaviour.DeathKnocksAtTheDoor()
         context = ExecutionContext()
         spec = lancelot.Spec(context)
         spec.get_library_method('do_come_in_mr_death').should_raise(AttributeError)
 
-        context.store_instance('libraryXYZ', death_knocks_at_the_door)
+        context.store_instance('libraryXYZ', mr_death)
         spec = lancelot.Spec(context.get_library_method('do_come_in_mr_death'))
-        spec.__call__().should_be(death_knocks_at_the_door.do_come_in_mr_death())
+        spec.__call__().should_be(mr_death.do_come_in_mr_death())
 
         spec = lancelot.Spec(ExecutionContext())
         spec.get_library_method('do_come_in_mr_death').should_raise(AttributeError)
+        
+        context.cleanup_imports()
+
+    @lancelot.verifiable
+    def gets_library_methods_from_fifo_stack(self):
+        ''' Library methods should be retrieved from a fifo stack '''
+        class GrimReaperKnocks(ExecutionContextBehaviour.DeathKnocksAtTheDoor):
+            def do_come_in_mr_death(self):
+                return "I'm afraid we don't have any beer"
+        context = ExecutionContext()
+        mr_death = ExecutionContextBehaviour.DeathKnocksAtTheDoor()
+        reaper = GrimReaperKnocks()
+        context.store_instance('library1', mr_death)
+        context.store_instance('library2', reaper)
+        
+        spec = lancelot.Spec(context.get_library_method('do_come_in_mr_death'))
+        spec.__call__().should_be(reaper.do_come_in_mr_death())
+
+        context.store_instance('library2', mr_death)
+        spec = lancelot.Spec(context.get_library_method('do_come_in_mr_death'))
+        spec.__call__().should_be(mr_death.do_come_in_mr_death())
         
         context.cleanup_imports()
 
