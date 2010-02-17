@@ -18,8 +18,8 @@ see <http://www.gnu.org/licenses/>
 #################################
 # Using waferslim with fitnesse #
 #################################
-This release of waferslim has been tested with the fitnesse distributions 
-20090214 and 20090321. Fitnesse distributions are available online at 
+This release of waferslim has been tested with the fitnesse distribution 
+20100103. Fitnesse distributions are available online at 
   http://fitnesse.org/FitNesseDevelopment.DownLoad
 Fitnesse requires a Java Runtime Environment (JRE): Java 6 is recommended. 
 If you are unfamiliar with fitnesse, the tutorials online (referenced at 
