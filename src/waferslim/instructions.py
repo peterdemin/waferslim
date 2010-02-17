@@ -76,7 +76,8 @@ class Make(Instruction):
 
 def pythonic(method_name):
     ''' Returns a method_name converted from camelCase to pythonic_case'''
-    return ''.join([_underscored_lowercase(char) for char in method_name])
+    return method_name[0].lower() + \
+        ''.join([_underscored_lowercase(char) for char in method_name[1:]])
 
 def _underscored_lowercase(char):
     ''' Returns _<lowercase char> if char is uppercase; char otherwise'''

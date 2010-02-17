@@ -150,7 +150,8 @@ def pythonic_method_names():
     names = {'method':'method',
              'aMethod':'a_method',
              'camelsHaveHumps': 'camels_have_humps',
-             'pythons_are_snakes':'pythons_are_snakes' }
+             'pythons_are_snakes':'pythons_are_snakes',
+             'Parrot':'parrot' }
     for camel, python in names.items():
         spec.pythonic(camel).should_be(python)
 
