@@ -99,26 +99,18 @@ class Call(Instruction):
         -  try to invoke the named method on the system under test
         -  try to invoke the named method via libraries
         '''
-        instance = target = None
         instance_name, target_name = params[0], params[1]
-        try:
-            instance = execution_context.get_instance(instance_name)
-        except KeyError:
-            pass
+        instance, target = execution_context.get_instance(instance_name), None
         
         if instance is not None:
             target = self._target_for(instance, target_name)
-            
-        if instance and not target:
-            sut = self._target_for(instance, 'sut')
-            sut = sut and (hasattr(sut, '__call__') and sut() or sut) 
-            target = sut and self._target_for(sut, target_name) or None
-            
-        if not target: 
-            try:
-                target = execution_context.get_library_method(target_name)
-            except AttributeError: #TODO: None...
-                pass
+            if not target:
+                sut = self._target_for(instance, 'sut')
+                sut = sut and (hasattr(sut, '__call__') and sut() or sut) 
+                target = sut and self._target_for(sut, target_name) or None
+        
+        if not target:
+            target = execution_context.get_library_method(target_name)
         
         if target:
             return self._result(execution_context, target, params)

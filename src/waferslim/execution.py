@@ -170,8 +170,8 @@ class ExecutionContext(object):
         
     def add_type_prefix(self, prefix):
         ''' Add a prefix that may be used to find classes without using long
-        fully-dot-qualified names'''
-        self._type_prefixes.append(prefix)
+        fully-dot-qualified names '''
+        self._type_prefixes.insert(0, prefix)
 
     def get_module(self, fully_qualified_name):
         ''' Monkey-patch builtin __import__ and sys.path to ensure isolation
@@ -232,20 +232,19 @@ class ExecutionContext(object):
     def get_library_method(self, name):
         ''' Get a method from the library '''
         self._debug('Getting library method %s' % name)
-        for instance in self._libraries.__reversed__():
+        for instance in self._libraries:
             if hasattr(instance, name):
                 return getattr(instance, name)
-        err = 'No library method %s found. Are you missing a Library table?' 
-        raise AttributeError(err % name)
+        return None
     
     def _store_library_instance(self, value):
         ''' Add methods in a class instance to the library '''
         self._debug('Storing library instance %s' % value)
-        self._libraries.append(value)
+        self._libraries.insert(0, value)
     
     def _is_library(self, name):
         ''' Determine whether an instance name represents a library '''
-        return name.lower().startswith("library")
+        return name.lower().startswith('library')
     
     def store_instance(self, name, value):
         ''' Add a name=value pair to the context instances '''
@@ -257,11 +256,14 @@ class ExecutionContext(object):
 
     def get_instance(self, name):
         ''' Get value from a name=value pair in the context instances '''
-        return self._instances[name]
+        try:
+            return self._instances[name]
+        except KeyError:
+            return None
     
     def add_import_path(self, path):
         ''' An an import location to the context path '''
-        self._path.append(path)
+        self._path.insert(0, path)
     
     def store_symbol(self, name, value):
         ''' Add a name=value pair to the context symbols '''

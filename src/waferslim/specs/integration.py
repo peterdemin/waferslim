@@ -3,7 +3,7 @@ BDD-style Lancelot specifications for the behaviour of the core library classes
 integrating various parts together via the example classes. 
 '''
 
-import lancelot, lancelot.comparators
+import lancelot.comparators
 from waferslim.execution import Instructions, ExecutionContext, Results
 
 @lancelot.verifiable

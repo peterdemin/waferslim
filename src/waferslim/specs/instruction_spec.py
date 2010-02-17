@@ -209,8 +209,8 @@ class CallExceptionBehaviour(object):
         call_instruction = Call('id_9A', params)
         spec = lancelot.Spec(call_instruction)
         spec.execute(execution_context, results).should_collaborate_with(
-            execution_context.get_instance(params[0]).will_raise(KeyError),
-            execution_context.get_library_method(params[1]).will_raise(AttributeError),
+            execution_context.get_instance(params[0]).will_return(None),
+            execution_context.get_library_method(params[1]).will_return(None),
             results.failed(call_instruction, cause)
             )
 
@@ -228,7 +228,7 @@ class CallExceptionBehaviour(object):
         
         spec.execute(execution_context, results).should_collaborate_with(
             execution_context.get_instance(params[0]).will_return(instance),
-            execution_context.get_library_method(params[1]).will_raise(AttributeError),
+            execution_context.get_library_method(params[1]).will_return(None),
             results.failed(call_instruction, cause)
             )
 

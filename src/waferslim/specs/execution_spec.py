@@ -198,13 +198,13 @@ class ExecutionContextBehaviour(object):
         instances should be isolated across execution contexts'''
         context = ExecutionContext()
         spec = lancelot.Spec(context)
-        spec.get_instance('wafer thin').should_raise(KeyError)
+        spec.get_instance('wafer thin').should_be(None)
 
         spec.when(spec.store_instance('wafer thin', 'mint'))
         spec.then(spec.get_instance('wafer thin')).should_be('mint')
 
         spec = lancelot.Spec(ExecutionContext())
-        spec.get_instance('wafer thin').should_raise(KeyError)
+        spec.get_instance('wafer thin').should_be(None)
         
         context.cleanup_imports()
 
@@ -216,14 +216,14 @@ class ExecutionContextBehaviour(object):
         mr_death = ExecutionContextBehaviour.DeathKnocksAtTheDoor()
         context = ExecutionContext()
         spec = lancelot.Spec(context)
-        spec.get_library_method('do_come_in_mr_death').should_raise(AttributeError)
+        spec.get_library_method('do_come_in_mr_death').should_be(None)
 
         context.store_instance('libraryXYZ', mr_death)
         spec = lancelot.Spec(context.get_library_method('do_come_in_mr_death'))
         spec.__call__().should_be(mr_death.do_come_in_mr_death())
 
         spec = lancelot.Spec(ExecutionContext())
-        spec.get_library_method('do_come_in_mr_death').should_raise(AttributeError)
+        spec.get_library_method('do_come_in_mr_death').should_be(None)
         
         context.cleanup_imports()
 
