@@ -229,6 +229,7 @@ class CallExceptionBehaviour(object):
             results.failed(call_instruction, cause)
             )
 
+lancelot.grouping(CallExceptionBehaviour)
         
 @lancelot.verifiable
 def import_adds_to_pythonpath():
@@ -262,8 +263,6 @@ def import_adds_to_type_context():
             execution_context.add_type_prefix('some.module'),
             results.completed(import_instruction)
         )
-
-lancelot.grouping(CallExceptionBehaviour)
 
 @lancelot.verifiable
 def call_and_assign_sets_variable():
