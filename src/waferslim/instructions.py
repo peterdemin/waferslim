@@ -74,7 +74,7 @@ class Make(Instruction):
                                   self._params[1], error.args[0])
             results.failed(self, cause)
 
-def camel_case_to_pythonic(method_name):
+def pythonic(method_name):
     ''' Returns a method_name converted from camelCase to pythonic_case'''
     return ''.join([_underscored_lowercase(char) for char in method_name])
 
@@ -94,39 +94,55 @@ class Call(Instruction):
             results.completed(self, result)
         
     def _invoke(self, execution_context, results, params):
-        ''' Get an instance from the execution context and invoke a method'''
+        ''' Get an instance from the execution context and invoke a method:
+        -  try to invoke the named method on the instance
+        -  try to invoke the named method on the system under test
+        -  try to invoke the named method via libraries
+        '''
+        instance = target = None
+        instance_name, target_name = params[0], params[1]
         try:
-            instance = execution_context.get_instance(params[0])
+            instance = execution_context.get_instance(instance_name)
         except KeyError:
-            try:
-                target = execution_context.get_library_method(params[1])
-                return self._result(execution_context, target, params)
-            except AttributeError:
-                results.failed(self, '%s %s' % (_NO_INSTANCE, params[0]))
-                return (None, False)
+            pass
         
-        try:
-            target = self._target_for(instance, params[1])
-        except AttributeError:
+        if instance is not None:
+            target = self._target_for(instance, target_name)
+            
+        if instance and not target:
+            sut = self._target_for(instance, 'sut')
+            target = sut and self._target_for(sut(), target_name) or None
+            
+        if not target: 
             try:
-                target = execution_context.get_library_method(params[1])
-                return self._result(execution_context, target, params)
-            except AttributeError:
-                cause = '%s %s %s' % (_NO_METHOD, params[1], 
-                                      type(instance).__name__)
-                results.failed(self, cause)
-                return (None, False)
+                target = execution_context.get_library_method(target_name)
+            except AttributeError: #TODO: None...
+                pass
         
-        return self._result(execution_context, target, params)
+        if target:
+            return self._result(execution_context, target, params)
+        elif instance is None:
+            results.failed(self, '%s %s' % (_NO_INSTANCE, instance_name))
+            return (None, False)
+        else:
+            cause = '%s %s %s' % (_NO_METHOD, target_name, 
+                                  type(instance).__name__)
+            results.failed(self, cause)
+            return (None, False)
     
-    def _target_for(self, instance, method_name):
+    def _target_for(self, instance, method_name, convert_name=True):
         ''' Return an instance's named method to use as a call target. 
         If a pythonically_named method exists it will be used, otherwise the
         fitnesse standard camelCase method will be returned it it exists. '''
         try:
-            return getattr(instance, camel_case_to_pythonic(method_name))
+            return getattr(instance, 
+                           convert_name \
+                           and pythonic(method_name) \
+                           or method_name)
         except AttributeError:
-            return getattr(instance, method_name)
+            return convert_name \
+                    and self._target_for(instance, method_name, False) \
+                    or None
         
     def _result(self, execution_context, target, params):
         args = execution_context.to_args(params, 2)

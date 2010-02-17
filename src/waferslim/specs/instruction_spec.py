@@ -4,11 +4,12 @@ BDD-style Lancelot specifications for the behaviour of the core library classes
 
 import lancelot
 from lancelot.comparators import Type
-from waferslim.instructions import Instruction, camel_case_to_pythonic, \
+from waferslim.instructions import Instruction, pythonic, \
                                    Make, Import, Call, CallAndAssign
 from waferslim.execution import ParamsConverter
 from waferslim.specs.spec_classes import ClassWithNoArgs, ClassWithOneArg, \
-                                         ClassWithTwoArgs
+                                         ClassWithTwoArgs, \
+                                         ClassWithSystemUnderTest
 
 class BaseInstructionBehaviour(object):
     ''' Related Specs for base Instruction behaviour '''
@@ -142,15 +143,15 @@ lancelot.grouping(MakeExceptionBehaviour)
 
 @lancelot.verifiable
 def pythonic_method_names():
-    ''' camel_case_to_pythonic should convert camelCase names to pythonic 
+    ''' pythonic should convert camelCase names to pythonic 
     non_camel_case ones'''
-    spec = lancelot.Spec(camel_case_to_pythonic)
+    spec = lancelot.Spec(pythonic)
     names = {'method':'method',
              'aMethod':'a_method',
              'camelsHaveHumps': 'camels_have_humps',
              'pythons_are_snakes':'pythons_are_snakes' }
     for camel, python in names.items():
-        spec.camel_case_to_pythonic(camel).should_be(python)
+        spec.pythonic(camel).should_be(python)
 
 @lancelot.verifiable
 def call_invokes_method():
@@ -175,6 +176,23 @@ def call_invokes_method():
             results.completed(call_instruction, 'meaning')
             )
 
+@lancelot.verifiable
+def call_invokes_system_under_test():
+    ''' Will try to access sut when Call target has no such method''' 
+    execution_context = lancelot.MockSpec(name='execution_context')
+    results = lancelot.MockSpec(name='results')
+    params = ['instance', 'is_dead']
+    instance = ClassWithSystemUnderTest()
+    
+    call_instruction = Call('id_blah', params)
+    spec = lancelot.Spec(call_instruction)
+    
+    spec.execute(execution_context, results).should_collaborate_with(
+        execution_context.get_instance(params[0]).will_return(instance),
+        execution_context.to_args(params, 2).will_return(()),
+        results.completed(call_instruction, False)
+        )
+    
 class CallExceptionBehaviour(object):
     ''' Exception-related Specs for Call-instruction behaviour '''
     
@@ -210,6 +228,7 @@ class CallExceptionBehaviour(object):
             execution_context.get_library_method(params[1]).will_raise(AttributeError),
             results.failed(call_instruction, cause)
             )
+
         
 @lancelot.verifiable
 def import_adds_to_pythonpath():
