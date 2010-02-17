@@ -9,7 +9,8 @@ from waferslim.instructions import Instruction, pythonic, \
 from waferslim.execution import ParamsConverter
 from waferslim.specs.spec_classes import ClassWithNoArgs, ClassWithOneArg, \
                                          ClassWithTwoArgs, \
-                                         ClassWithSystemUnderTest
+                                         ClassWithSystemUnderTestMethod, \
+                                         ClassWithSystemUnderTestField
 
 class BaseInstructionBehaviour(object):
     ''' Related Specs for base Instruction behaviour '''
@@ -179,19 +180,21 @@ def call_invokes_method():
 @lancelot.verifiable
 def call_invokes_system_under_test():
     ''' Will try to access sut when Call target has no such method''' 
-    execution_context = lancelot.MockSpec(name='execution_context')
-    results = lancelot.MockSpec(name='results')
     params = ['instance', 'is_dead']
-    instance = ClassWithSystemUnderTest()
+    instances = [ ClassWithSystemUnderTestMethod(), ClassWithSystemUnderTestField() ]
     
-    call_instruction = Call('id_blah', params)
-    spec = lancelot.Spec(call_instruction)
-    
-    spec.execute(execution_context, results).should_collaborate_with(
-        execution_context.get_instance(params[0]).will_return(instance),
-        execution_context.to_args(params, 2).will_return(()),
-        results.completed(call_instruction, False)
-        )
+    for instance in instances:
+        execution_context = lancelot.MockSpec(name='execution_context')
+        results = lancelot.MockSpec(name='results')
+        
+        call_instruction = Call('id_blah', params)
+        spec = lancelot.Spec(call_instruction)
+        
+        spec.execute(execution_context, results).should_collaborate_with(
+            execution_context.get_instance(params[0]).will_return(instance),
+            execution_context.to_args(params, 2).will_return(()),
+            results.completed(call_instruction, False)
+            )
     
 class CallExceptionBehaviour(object):
     ''' Exception-related Specs for Call-instruction behaviour '''

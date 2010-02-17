@@ -111,7 +111,8 @@ class Call(Instruction):
             
         if instance and not target:
             sut = self._target_for(instance, 'sut')
-            target = sut and self._target_for(sut(), target_name) or None
+            sut = sut and (hasattr(sut, '__call__') and sut() or sut) 
+            target = sut and self._target_for(sut, target_name) or None
             
         if not target: 
             try:

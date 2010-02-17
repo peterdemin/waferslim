@@ -21,7 +21,12 @@ class _Parrot(object):
     def is_dead(self):
         return False
 
-class ClassWithSystemUnderTest(object):
+class ClassWithSystemUnderTestMethod(object):
     ''' A class that wishes to expose an underlying sut '''
     def sut(self):
         return _Parrot() 
+    
+class ClassWithSystemUnderTestField(object):
+    ''' Another class that wishes to expose an underlying sut '''
+    def __init__(self):
+        self.sut = _Parrot() 
