@@ -501,7 +501,17 @@ def params_converter_behaviour():
     spec = lancelot.Spec(ParamsConverter(execution_context))
     spec.to_args([['bring', 'me'], ['another', 'bucket']], 0).should_be(
                  (('bring', 'me'), ('another', 'bucket'))
-                )
+        )
+                 
+    execution_context = lancelot.MockSpec('execution_context')
+    spec = lancelot.Spec(ParamsConverter(execution_context))
+    spec.to_args(['$s11$s$s1$s11'], 0).should_collaborate_with(
+        execution_context.get_symbol('s11').will_return('I'),
+        execution_context.get_symbol('s').will_return('R'),
+        execution_context.get_symbol('s1').will_return('O'),
+        execution_context.get_symbol('s11').will_return('N'),
+        and_result=(('IRON',))
+        )
 
 if __name__ == '__main__':
     lancelot.verify()
