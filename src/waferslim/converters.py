@@ -9,17 +9,19 @@ Import this module and use the method decorators
 in your own classes (see decision_table and script_table in the examples).
 
 Converters are provided for bool, int, float and datetime (date, time 
-and datetime) types. You may also register your own custom converter with
-this module using register_converter(), after which it will be accessible both
-to decorated methods and to the waferslim code that translates return values
-into standard slim strings.
+and datetime), list, tuple and dict types. You can obtain the appropriate
+converter using the converter_for() function or just make use of it for
+stringification with the to_string() function. You can register a custom 
+converter with this module using register_converter(), after which it will 
+be accessible both to decorated methods and to the waferslim code that 
+translates return values into standard slim strings.
 
 The latest source code is available at http://code.launchpad.net/waferslim.
 
 Copyright 2009 by the author(s). All rights reserved 
 '''
-
-import datetime, threading
+import datetime, threading, HTMLParser
+from waferslim import WaferSlimException
 
 __THREADLOCAL = threading.local()
 
@@ -153,9 +155,46 @@ class IterableConverter(Converter):
         ''' Generate a list of str values from a list of typed values.
         Note the slightly misleading name of this method: it actually returns
         a list (of str) rather than an actual str...'''
-        return [converter_for(value).to_string(value) \
-                for value in iterable_values]
+        return [to_string(value) for value in iterable_values]
 
+class _MarkupHashTableParser(HTMLParser.HTMLParser):
+    def __init__(self):
+        HTMLParser.HTMLParser.__init__(self)
+        self._name = None
+        self._get_data = False
+        self._dict = {}
+    def handle_starttag(self, tag, attrs):
+        if tag == 'tr':
+            self._name = None
+        elif tag == 'td':
+            self._get_data = True
+    def handle_data(self, data):
+        if self._get_data:
+            if self._name:
+                self._dict[self._name] = data
+            else:
+                self._name = data 
+    def to_dict(self, markup):
+        self.feed(markup)
+        return self._dict
+
+class DictConverter(Converter):
+    ''' Converter to/from dict type via slim-table format 
+    (see http://fitnesse.org/FitNesse.UserGuide.MarkupHashTable) '''
+    def to_string(self, a_dict):
+        ''' Generate a str value in the fitnesse HashMarkupTable format 
+        from a dict of typed name,value pairs '''
+        rows = []
+        for name, value in a_dict.items():
+            rows.append('<tr><td>%s</td><td>%s</td></tr>' \
+                        % (to_string(name), to_string(value)) )
+        return '<table>%s</table>' % ''.join(rows)
+
+    def from_string(self, hash_table_markup):
+        ''' Generate a dict of typed name,value pairs from a str value
+        in the fitnesse HashMarkupTable format '''
+        return _MarkupHashTableParser().to_dict(hash_table_markup)
+        
 def register_converter(for_type, converter_instance):
     ''' Register a converter_instance to be used with all for_type instances.
     Registration is 'forever' (across all fitnesse tables run as a suite): the
@@ -189,6 +228,7 @@ def __init_converters():
     register_converter(list, IterableConverter())
     register_converter(tuple, IterableConverter())
     register_converter(str, StrConverter())
+    register_converter(dict, DictConverter())
 
 def convert_arg(to_type=None, using=None):
     ''' Method decorator to convert a slim-standard string arg to a specific
@@ -203,7 +243,7 @@ def convert_arg(to_type=None, using=None):
     method, e.g. 
         @convert_arg(to_type=int)
         def some_method(self, an_int, another_int)...
-    or they may be suppplied as iterables, in which case they will be iterated
+    or they may be suppplied as tuples, in which case they will be iterated
     over to provide a different converter for each argument in the target 
     method, e.g. 
         @convert_arg(to_type=(int, float))
@@ -212,17 +252,36 @@ def convert_arg(to_type=None, using=None):
     conversion_strategy = to_type and to_type or using
     if not conversion_strategy:
         raise TypeError('One of "to_type" or "using" must be supplied')
+    class _ReIterable(object):
+        def __init__(self, iterable):
+            self._iterable = iterable
+        def reset(self, num_args):
+            self._num_args = num_args
+            self._iterator = self._iterable.__iter__()
+            return True
+        def next(self):
+            try:
+                return self._iterator.next()
+            except StopIteration:
+                msg = 'convert_args(%s args) insufficient to convert %s params'
+                raise WaferSlimException(msg % (len(self._iterable), 
+                                                self._num_args))
     def conversion_decorator(fn):
         ''' callable that performs the actual decoration '''
-        if hasattr(conversion_strategy, '__iter__'):
+        if type(conversion_strategy) is tuple:
             converter = using and using or \
                         [_strict_converter_for(_type) for _type in to_type]
-            next = converter.__iter__().next
+            reiterable = _ReIterable(converter)
+            reset = reiterable.reset
+            next = reiterable.next
         else:
             converter = using and using or _strict_converter_for(to_type)
+            reset = lambda num_args: True
             next = lambda: converter
         return lambda self, *args: \
-                fn(self, *tuple([next().from_string(arg) for arg in args]))
+                reset(len(args)) and \
+                fn(self, *tuple([next().from_string(arg) for arg in args])) \
+                or None 
     return conversion_decorator
 
 def convert_result(using):
@@ -248,6 +307,11 @@ def converter_for(type_or_value):
         return _strict_converter_for(type_or_value)
     except KeyError:
         return _DEFAULT_CONVERTER
+    
+def to_string(value):
+    ''' Shortcut for converter_for(value).to_string(value): stringify a value
+    using an appropriate registered converter '''
+    return converter_for(value).to_string(value)
     
 def _strict_converter_for(type_or_value): 
     ''' Returns the exact converter for a particular type_or_value.

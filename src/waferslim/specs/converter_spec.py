@@ -6,7 +6,8 @@ from waferslim.converters import register_converter, converter_for, \
     convert_arg, convert_result, Converter, StrConverter, \
     TrueFalseConverter, YesNoConverter, FromConstructorConverter, \
     DateConverter, TimeConverter, DatetimeConverter, IterableConverter, \
-    TableTableConstants
+    TableTableConstants, DictConverter
+from waferslim import WaferSlimException
 import lancelot, datetime, threading
 from lancelot.comparators import FloatValue, Type
 
@@ -202,6 +203,9 @@ class ASystemUnderTest(object):
     def add(self, one_int, another_int):
         ''' result method to be decorated '''
         return one_int + another_int
+    def divide_and_conquer(self, arg1, arg2, arg3):
+        ''' result method to be decorated '''
+        return (arg1 / arg2) * arg3
 
 class ConvertArgBehaviour(object):
     ''' Group of related specs for convert_arg() behaviour.
@@ -273,10 +277,11 @@ class ConvertArgBehaviour(object):
         ''' The decorator should handle conversion of multiple args of
         multiple types '''
         multiply = ASystemUnderTest.multiply
-        sut = ASystemUnderTest()
         decorated_fn = convert_arg(to_type=(int, float))(multiply)
+        sut = ASystemUnderTest()
         spec = lancelot.Spec(decorated_fn)
         spec.__call__(sut, '4', '1.2').should_be(FloatValue(4.8))
+        spec.__call__(sut, '3', '1.2').should_be(FloatValue(3.6))
 
         converters = (FromConstructorConverter(int), 
                       FromConstructorConverter(float))
@@ -284,6 +289,15 @@ class ConvertArgBehaviour(object):
         spec = lancelot.Spec(decorated_fn)
         spec.__call__(sut, '3', '1.1').should_be(FloatValue(3.3))
                 
+    @lancelot.verifiable
+    def handles_incorrect_arg_lengths(self):
+        ''' The decorator should handle incompatible arg lengths gracefully '''
+        divide_and_conquer = ASystemUnderTest.divide_and_conquer
+        sut = ASystemUnderTest()
+        decorated_fn = convert_arg(to_type=(int, float))(divide_and_conquer)
+        spec = lancelot.Spec(decorated_fn)
+        spec.__call__(sut, '9', '9.9', '9.99').should_raise(WaferSlimException)
+
     @lancelot.verifiable
     def fails_without_type_converter(self):
         ''' decorator should fail for to_type without a registered converter'''
@@ -317,6 +331,14 @@ def tabletable_constant_values():
     spec.cell_incorrect(None).should_be('None')
     spec.cell_error('Erk').should_be('error:Erk')
     spec.cell_error(-1).should_be('error:-1')
+
+@lancelot.verifiable
+def dictconverter_behaviour():
+    table_str = '<table><tr><td>key</td><td>value</td></tr></table>'
+    dict = {'key':'value'}
+    spec = lancelot.Spec(DictConverter())
+    spec.to_string(dict).should_be(table_str)
+    spec.from_string(table_str).should_be(dict)
     
 if __name__ == '__main__':
     lancelot.verify()
