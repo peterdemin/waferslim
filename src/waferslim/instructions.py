@@ -3,7 +3,7 @@ Instruction classes that invoke actions on some underlying "system under test".
 
 The latest source code is available at http://code.launchpad.net/waferslim.
 
-Copyright 2009 by the author(s). All rights reserved 
+Copyright 2009-2010 by the author(s). All rights reserved 
 '''
 
 _BAD_INSTRUCTION = 'INVALID_STATEMENT'

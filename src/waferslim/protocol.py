@@ -5,7 +5,7 @@ See http://fitnesse.org/FitNesse.SliM.SlimProtocol for more details.
     
 The latest source code is available at http://code.launchpad.net/waferslim.
 
-Copyright 2009 by the author(s). All rights reserved 
+Copyright 2009-2010 by the author(s). All rights reserved 
 '''
 
 from waferslim import WaferSlimException

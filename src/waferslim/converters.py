@@ -18,7 +18,7 @@ translates return values into standard slim strings.
 
 The latest source code is available at http://code.launchpad.net/waferslim.
 
-Copyright 2009 by the author(s). All rights reserved 
+Copyright 2009-2010 by the author(s). All rights reserved 
 '''
 import datetime, threading, HTMLParser
 from waferslim import WaferSlimException
