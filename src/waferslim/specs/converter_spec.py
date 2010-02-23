@@ -334,8 +334,15 @@ def tabletable_constant_values():
 
 @lancelot.verifiable
 def dictconverter_behaviour():
-    table_str = '<table><tr><td>key</td><td>value</td></tr></table>'
-    dict = {'key':'value'}
+    table_str = '<table %s><tr %s><td %s>%s</td><td %s>%s</td></tr><tr %s><td %s>%s</td><td %s>%s</td></tr></table>' % \
+                (DictConverter.TABLE_CLASS,
+                 DictConverter.TR_CLASS, 
+                 DictConverter.TD_KEY_CLASS, 'fname', 
+                 DictConverter.TD_VALUE_CLASS, 'a', 
+                 DictConverter.TR_CLASS, 
+                 DictConverter.TD_KEY_CLASS, 'lname', 
+                 DictConverter.TD_VALUE_CLASS, 'b' )
+    dict = {'fname':'a', 'lname':'b'}
     spec = lancelot.Spec(DictConverter())
     spec.to_string(dict).should_be(table_str)
     spec.from_string(table_str).should_be(dict)

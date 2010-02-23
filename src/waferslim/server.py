@@ -30,7 +30,7 @@ The latest source code is available at http://code.launchpad.net/waferslim.
 
 Copyright 2009-2010 by the author(s). All rights reserved 
 '''
-import codecs, logging, logging.config, os, SocketServer, sys
+import codecs, logging.config, os, SocketServer, sys
 from optparse import OptionParser
 import waferslim.protocol
 

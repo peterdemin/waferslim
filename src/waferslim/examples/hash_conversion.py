@@ -13,8 +13,8 @@ Fitnesse table markup:
 
 |DT:People| !{fname:bob, lname:martin, nname:unclebob} | !{fname:guido, lname:vanRossum, nname:!-BenevolentDictatorForLife-!} |
 |nickname|Person?|
-|unclebob|bob martin|
-|!-BenevolentDictatorForLife-!|guido vanRossum|
+|unclebob|!{fname:bob, lname:martin}|
+|!-BenevolentDictatorForLife-!|!{fname:guido, lname:vanRossum}|
 
 '''
 
@@ -47,9 +47,12 @@ class People:
         self._current_nickname = nickname
     
     def person(self):
-        ''' Find the fname/lname of the matching person '''
+        ''' Find the fname/lname of the matching person.
+        Note that the keys must be sorted in the fitnesse markup,
+        i.e. {fname:x,lname:y} is not the same as {lname:y,fname:x} '''
         for person in self._people:
             if person['nname'] == self._current_nickname:
-                return '%s %s' % (person['fname'], person['lname'])
+                return {'fname':person['fname'], 
+                        'lname':person['lname']}
         msg = 'No person with nickname %s'
         raise KeyError(msg % (self._current_nickname))

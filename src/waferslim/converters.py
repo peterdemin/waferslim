@@ -187,14 +187,25 @@ class _MarkupHashTableParser(HTMLParser.HTMLParser):
 class DictConverter(Converter):
     ''' Converter to/from dict type via slim-table format 
     (see http://fitnesse.org/FitNesse.UserGuide.MarkupHashTable) '''
+    TABLE_CLASS = 'class="hash_table"'
+    TR_CLASS = 'class="hash_row"'
+    TD_KEY_CLASS = 'class="hash_key"'
+    TD_VALUE_CLASS = 'class="hash_value"'
+    
     def to_string(self, a_dict):
         ''' Generate a str value in the fitnesse HashMarkupTable format 
         from a dict of typed name,value pairs '''
-        rows = []
-        for name, value in a_dict.items():
-            rows.append('<tr><td>%s</td><td>%s</td></tr>' \
-                        % (to_string(name), to_string(value)) )
-        return '<table>%s</table>' % ''.join(rows)
+        names = [key for key in a_dict.keys()]
+        names.sort()
+        rows = ['<tr %s><td %s>%s</td><td %s>%s</td></tr>' \
+                % (DictConverter.TR_CLASS,
+                   DictConverter.TD_KEY_CLASS, 
+                   to_string(name), 
+                   DictConverter.TD_VALUE_CLASS, 
+                   to_string(a_dict.get(name)))
+                for name in names]
+        return '<table %s>%s</table>' % \
+                (DictConverter.TABLE_CLASS, ''.join(rows))
 
     def from_string(self, hash_table_markup):
         ''' Generate a dict of typed name,value pairs from a str value
