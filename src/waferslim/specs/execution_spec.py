@@ -233,7 +233,7 @@ class ExecutionContextBehaviour(object):
     def warns_if_library_methods_may_pollute_tests(self):
         ''' libraries with method names "execute" and "reset" may pollute test
         results, since those methods are called for each row in a decision table '''
-        polluting_names = ['execute', 'reset']
+        polluting_names = ['execute', 'reset', 'table']
         for name in polluting_names:
             logger = lancelot.MockSpec(name='logger')
             context = ExecutionContext(logger=logger)

@@ -158,23 +158,29 @@ class IterableConverter(Converter):
         return [to_string(value) for value in iterable_values]
 
 class _MarkupHashTableParser(HTMLParser.HTMLParser):
+    ''' Subclass HTMLParser to extract name-value pairs from an html table ''' 
     def __init__(self):
+        ''' Set up instance variables '''
         HTMLParser.HTMLParser.__init__(self)
         self._name = None
         self._get_data = False
         self._dict = {}
     def handle_starttag(self, tag, attrs):
+        ''' Identify columns within table rows whose data contains 
+        a name or value '''
         if tag == 'tr':
             self._name = None
         elif tag == 'td':
             self._get_data = True
     def handle_data(self, data):
+        ''' Extract the name or value from column data and store it '''
         if self._get_data:
             if self._name:
                 self._dict[self._name] = data
             else:
                 self._name = data 
     def to_dict(self, markup):
+        ''' Convert html markup into a dict by extracting name-value pairs '''
         self.feed(markup)
         return self._dict
 
@@ -199,7 +205,7 @@ def register_converter(for_type, converter_instance):
     ''' Register a converter_instance to be used with all for_type instances.
     Registration is 'forever' (across all fitnesse tables run as a suite): the
     decision_table example demonstrates how to use an alternative converter 
-    'temporarily' (for a single fitnesse table within a suite).  
+    with the @using method decorator.  
     A converter_instance must implement from_string() and to_string(). '''
     if hasattr(converter_instance, 'from_string') and \
     hasattr(converter_instance, 'to_string'):
@@ -253,34 +259,39 @@ def convert_arg(to_type=None, using=None):
     if not conversion_strategy:
         raise TypeError('One of "to_type" or "using" must be supplied')
     class _ReIterable(object):
+        ''' Class to allow repeatable iteration over convert_arg params ''' 
         def __init__(self, iterable):
+            ''' Specify the iterable for repeatable iteration '''
             self._iterable = iterable
-        def reset(self, num_args):
-            self._num_args = num_args
-            self._iterator = self._iterable.__iter__()
+        def reset(self, num_params):
+            ''' Reset iteration and note num_params supplied in method call '''
+            self._num_params = num_params
+            self._iterator = iter(self._iterable)
             return True
         def next(self):
+            ''' Get next value from the iterable '''
             try:
-                return self._iterator.next()
+                return next(self._iterator)
             except StopIteration:
                 msg = 'convert_args(%s args) insufficient to convert %s params'
                 raise WaferSlimException(msg % (len(self._iterable), 
-                                                self._num_args))
-    def conversion_decorator(fn):
+                                                self._num_params))
+    def conversion_decorator(base_fn):
         ''' callable that performs the actual decoration '''
         if type(conversion_strategy) is tuple:
             converter = using and using or \
                         [_strict_converter_for(_type) for _type in to_type]
             reiterable = _ReIterable(converter)
-            reset = reiterable.reset
-            next = reiterable.next
+            _reset = reiterable.reset
+            _next = reiterable.next
         else:
             converter = using and using or _strict_converter_for(to_type)
-            reset = lambda num_args: True
-            next = lambda: converter
+            _reset = lambda num_args: True
+            _next = lambda: converter
         return lambda self, *args: \
-                reset(len(args)) and \
-                fn(self, *tuple([next().from_string(arg) for arg in args])) \
+                _reset(len(args)) and \
+                base_fn(self, 
+                        *tuple([_next().from_string(arg) for arg in args])) \
                 or None 
     return conversion_decorator
 
@@ -294,9 +305,9 @@ def convert_result(using):
     within a suite '''
     if not (using):
         raise TypeError('"using" converter must be supplied')
-    def conversion_decorator(fn):
+    def conversion_decorator(base_fn):
         ''' callable that performs the actual decoration '''
-        return lambda self, *args: using.to_string(fn(self, *args))
+        return lambda self, *args: using.to_string(base_fn(self, *args))
     return conversion_decorator
 
 def converter_for(type_or_value): 

@@ -40,12 +40,8 @@ class Results(object):
         
     def failed(self, instruction, cause):
         ''' An instruction has failed due to some underlying cause '''
-        self._collected.append([instruction.instruction_id(), 
-                                self._format(cause)])
-    
-    def _format(self, cause):
-        ''' Return a failure cause in protocol exception format '''
-        return '%s message:<<%s>>' % (_EXCEPTION, cause)
+        self._collected.append([instruction.instruction_id(),
+                                '%s message:<<%s>>' % (_EXCEPTION, cause)])
     
     def collection(self):
         ''' Get the collected list of results - modifications to the list 
@@ -143,7 +139,7 @@ class ExecutionContext(object):
         self._params_converter = params_converter(self)
         # Implementation-specific...
         self._isolate_imports = isolate_imports
-        self._logger=logger
+        self._logger = logger
         self._imported = {}
         self._modules = {}
         self._modules.update(sys.modules)
@@ -184,7 +180,8 @@ class ExecutionContext(object):
         imported modules from sys.modules '''
         ExecutionContext._SEMAPHORE.acquire()
         try:
-            if self._isolate_imports: __builtin__.__import__ = self._import
+            if self._isolate_imports: 
+                __builtin__.__import__ = self._import
             sys.path = self._path
             sys.path.extend(ExecutionContext._SYSPATH)
             
@@ -203,7 +200,7 @@ class ExecutionContext(object):
                 del(sys.modules[mod])
             except KeyError:
                 pass
-            self._imported = {}
+        self._imported = {}
     
     def _import_module(self, fully_qualified_name):
         ''' Actually perform nested module import / lookup of a module '''
@@ -240,28 +237,24 @@ class ExecutionContext(object):
                 return getattr(instance, name)
         return None
     
-    def warn_if_library_method_names_may_pollute_tests(self, library):
-        ''' log a warning msg if libraries have method names "execute" or "reset" 
+    def warn_polluting_library_methods(self, library):
+        ''' log a warning if libraries have method names "execute" or "reset" 
         since those methods are called for each row in a decision table '''
-        for name in ['execute', 'reset']:
+        for name in ['execute', 'reset', 'table']:
             if hasattr(library, name) \
             and hasattr(getattr(library, name), '__call__'):
-                msg = '%s() in library %r may pollute Decision Table test results'
+                msg = '%s() in library %r may pollute DecisionTable results'
                 self._logger.warning(msg % (name, library)) 
     
     def _store_library_instance(self, value):
         ''' Add methods in a class instance to the library '''
         self._debug('Storing library instance %r' % value)
-        self.warn_if_library_method_names_may_pollute_tests(value)
+        self.warn_polluting_library_methods(value)
         self._libraries.insert(0, value)
-    
-    def _is_library(self, name):
-        ''' Determine whether an instance name represents a library '''
-        return name.lower().startswith('library')
     
     def store_instance(self, name, value):
         ''' Add a name=value pair to the context instances '''
-        if (self._is_library(name)):
+        if name.lower().startswith('library'):
             self._store_library_instance(value)
         else:
             self._debug('Storing instance %s=%r' % (name, value))
