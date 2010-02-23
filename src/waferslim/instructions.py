@@ -90,8 +90,8 @@ class Call(Instruction):
     
     def execute(self, execution_context, results):
         ''' Delegate to _invoke_call then record results on completion '''
-        result, ok = self._invoke(execution_context, results, self._params)
-        if ok:
+        result, is_ok = self._invoke(execution_context, results, self._params)
+        if is_ok:
             results.completed(self, result)
         
     def _invoke(self, execution_context, results, params):
@@ -139,6 +139,8 @@ class Call(Instruction):
                     or None
         
     def _result(self, execution_context, target, params):
+        ''' Perform params $variable substitution in the execution_context and 
+        then call target() '''  
         args = execution_context.to_args(params, 2)
         result = target(*args)
         return (result, True)
@@ -154,7 +156,7 @@ class CallAndAssign(Call):
         params_copy.extend(self._params)
         symbol_name = params_copy.pop(0)
         
-        result, ok = self._invoke(execution_context, results, params_copy)
-        if ok:
+        result, is_ok = self._invoke(execution_context, results, params_copy)
+        if is_ok:
             execution_context.store_symbol(symbol_name, result)
             results.completed(self, result)

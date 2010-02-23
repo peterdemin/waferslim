@@ -129,8 +129,9 @@ class RequestResponder(object):
         - receiving a 'bye' message will terminate the loop 
         '''
         ack_bytes = self._send_ack(self.request)
+        context = execution_context(isolate_imports=isolate_imports)
         received, sent = self._message_loop(instructions,
-                                            execution_context(isolate_imports=isolate_imports),
+                                            context,
                                             results)
         
         return received, sent + ack_bytes
