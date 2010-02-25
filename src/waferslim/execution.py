@@ -117,6 +117,7 @@ class ParamsConverter(object):
         ''' Actually perform the substitution identified by the match '''
         if match:
             return str(self._execution_context.get_symbol(match.groups()[0]))
+        return ''
    
 class ExecutionContext(object):
     ''' Contextual execution environment to allow simultaneous code executions
