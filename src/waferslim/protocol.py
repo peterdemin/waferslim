@@ -162,7 +162,6 @@ class RequestResponder(object):
             received += bytes_received
             
             message = self._get_message(message_length)
-            self.debug('Message::%s' % message)
             received += message_length
             
             if _DISCONNECT == message:
