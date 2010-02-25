@@ -185,10 +185,36 @@ class IterableConverterBehaviour(object):
         ''' to_string() should convert each item using a type-specific 
         converter for that item'''
         a_list = [1, datetime.date(2009, 5, 5), True]
+        a_tuple = (1,2,5)
         list_of_lists = [[1, 2], [True, False]]
         spec = lancelot.Spec(IterableConverter())
         spec.to_string(a_list).should_be(['1', '2009-05-05', 'true'])
+        spec.to_string(a_tuple).should_be(['1', '2', '5'])
         spec.to_string(list_of_lists).should_be([['1', '2'], ['true', 'false']])
+        
+    @lancelot.verifiable
+    def from_string_should_return_tuple(self):
+        ''' from_string() by default should return a tuple of str '''
+        spec = lancelot.Spec(IterableConverter())
+        spec.from_string('with... A HERRING!').should_be(('with... A HERRING!',))
+        spec.from_string('[with..., A HERRING!]').should_be(('with...', 'A HERRING!'))
+        spec.from_string('[with...,A HERRING!]').should_be(('with...', 'A HERRING!'))
+        spec.from_string('[with...,A,HERRING!]').should_be(('with...', 'A', 'HERRING!'))
+        spec.from_string('with...,A,HERRING!').should_be(('with...', 'A', 'HERRING!'))
+
+    @lancelot.verifiable
+    def from_string_should_convert_items(self):
+        ''' from_string() should convert types when required '''
+        spec = lancelot.Spec(IterableConverter(to_type=int))
+        spec.from_string('1,2, 3').should_be((1,2,3))
+        spec = lancelot.Spec(IterableConverter(using=YesNoConverter()))
+        spec.from_string('yes, no,yes').should_be((True,False,True))
+        spec.from_string('no,yes, yes').should_be((False,True,True))
+        spec = lancelot.Spec(IterableConverter(to_type=(int,bool)))
+        spec.from_string('1,yes').should_be((1,False))
+        spec = lancelot.Spec(IterableConverter(using=(YesNoConverter(),
+                                                      YesNoConverter())))
+        spec.from_string('1,No').should_be((False,False))
 
 lancelot.grouping(IterableConverterBehaviour)
     

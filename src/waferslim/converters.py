@@ -25,6 +25,28 @@ from waferslim import WaferSlimException
 
 __THREADLOCAL = threading.local()
 
+class _ReIterable(object):
+    ''' Class to allow repeatable iteration over to_type / using converters ''' 
+    def __init__(self, underlying):
+        ''' Specify the iterable for repeatable iteration '''
+        self._underlying = underlying
+    def reset(self, num_params):
+        ''' Reset iteration and note num_params supplied in method call '''
+        self._num_params = num_params
+        try:
+            self._iterator = iter(self._underlying)
+        except TypeError:
+            self._iterator = None
+        return True
+    def next(self):
+        ''' Get next value from the iterable '''
+        try:
+            return self._iterator and next(self._iterator) or self._underlying
+        except StopIteration:
+            msg = '%s to_type or using args insufficient to convert %s params'
+            raise WaferSlimException(msg % (len(self._underlying), 
+                                            self._num_params))
+            
 class TableTableConstants(object):
     ''' String constants for returning results from a TableTable '''
     @classmethod
@@ -107,10 +129,12 @@ class DateConverter(Converter):
     ''' Converter to/from datetime.date type via iso-standard format 
     (4digityear-2digitmonth-2digitday, e.g. 2009-02-28) '''
     
+    DATE_FORMAT = '%Y-%m-%d'
+    
     def from_string(self, value):
         ''' Generate datetime.date from iso-standard format str '''
-        iso_parts = [int(part) for part in value.split('-')]
-        return datetime.date(*tuple(iso_parts))
+        return datetime.datetime.strptime(value, 
+                                          DateConverter.DATE_FORMAT).date()
 
 class TimeConverter(Converter):
     ''' Converter to/from datetime.date type via iso-standard format 
@@ -118,44 +142,80 @@ class TimeConverter(Converter):
     an additional optional .6digitmillis, e.g. 01:02:03 or 01:02:03.456789).
     Does not take any time-zone UTC offset into account!'''
     
-    def from_string(self, value):
-        ''' Generate datetime.time from iso-standard format str '''
-        iso_parts = [int(part) for part in self._timesplit(value)]
-        return datetime.time(*tuple(iso_parts))
+    TIME_FORMAT_WITHOUT_MICROSECONDS = '%H:%M:%S'
+    TIME_FORMAT_WITH_MICROSECONDS = TIME_FORMAT_WITHOUT_MICROSECONDS + '.%f'
     
-    def _timesplit(self, value):
-        ''' split() value at both : and . characters per iso time format'''
-        dot_pos = value.rfind('.')
-        if dot_pos == -1:
-            return value.split(':')
-        else:
-            parts = self._timesplit(value[:dot_pos])
-            parts.append(value[dot_pos+1:])
-            return parts
-
+    def from_string(self, value):
+        ''' Generate datetime.time from formatted str '''
+        try:
+            return datetime.datetime.strptime(value, 
+                TimeConverter.TIME_FORMAT_WITH_MICROSECONDS).time()
+        except ValueError:
+            return datetime.datetime.strptime(value, 
+                TimeConverter.TIME_FORMAT_WITHOUT_MICROSECONDS).time()
+    
 class DatetimeConverter(Converter):
     ''' Converter to/from datetime.datetime type via iso-standard formats 
-    ("dateformat<space>timeformat", e.g. "2009-02-28 21:54:32.987654").
-    Delegates most of the actual work to DateConverter and TimeConverter. '''
+    ("dateformat<space>timeformat", e.g. "2009-02-28 21:54:32.987654"). '''
+
+    FORMAT_WITH_MICROSECONDS = '%s %s' % (DateConverter.DATE_FORMAT, 
+                                TimeConverter.TIME_FORMAT_WITH_MICROSECONDS)
+    FORMAT_WITHOUT_MICROSECONDS = '%s %s' % (DateConverter.DATE_FORMAT, 
+                                TimeConverter.TIME_FORMAT_WITHOUT_MICROSECONDS)
 
     def from_string(self, value):
         ''' Generate a datetime.datetime from a str '''
-        # TODO: ?use datetime.datetime.strptime instead
-        date_part, time_part = value.split(' ')
-        the_date = converter_for(datetime.date).from_string(date_part)
-        the_time = converter_for(datetime.time).from_string(time_part)
-        return datetime.datetime.combine(the_date, the_time)
+        try:
+            return datetime.datetime.strptime(value, 
+                                DatetimeConverter.FORMAT_WITH_MICROSECONDS) 
+        except ValueError:
+            return datetime.datetime.strptime(value, 
+                                DatetimeConverter.FORMAT_WITHOUT_MICROSECONDS) 
 
-#TODO: ?from_string might be nice for table_table?
 class IterableConverter(Converter):
     ''' Converter to/from an iterable type (e.g. list, tuple). 
     Delegates to type-specific converters for each item in the list.'''
+    
+    def __init__(self, to_type=None, using=None):
+        ''' Determine how conversion will be handled in from_string().
+        If neither to_type nor using is supplied then perform no conversion.
+        If to_type is supplied then perform conversion to the type(s) specified.
+        If using is supplied then perform conversion with the converter(s) 
+        specified. '''
+        Converter.__init__(self)
+        if using:
+            converters = using
+        elif to_type is None:
+            converters = StrConverter()
+        elif type(to_type) is tuple:
+            converters = _converters_for(to_type)
+        else:
+            converters = _strict_converter_for(to_type)
+        self._converters = _ReIterable(converters)
     
     def to_string(self, iterable_values):
         ''' Generate a list of str values from a list of typed values.
         Note the slightly misleading name of this method: it actually returns
         a list (of str) rather than an actual str...'''
         return [to_string(value) for value in iterable_values]
+    
+    def from_string(self, value):
+        ''' Generate a tuple from a str.
+        If value contains comma-separated values then the tuple will contain
+        each of these values individually.
+        If a to_type or using keyword argument was supplied to the constructor
+        then this will be used to perform conversion (similarly to convert_arg)
+        on each of the individual values. See the iterable_conversion example
+        for more details. '''
+        if value.startswith('[') and value.endswith(']'):
+            return self.from_string(value[1:len(value)-1])
+        items = value.split(',')
+        self._converters.reset(len(items))
+        return tuple([self._convert(item.strip()) for item in items])
+    
+    def _convert(self, item):
+        ''' Perform the actual conversion of an item '''
+        return self._converters.next().from_string(item)
 
 class _MarkupHashTableParser(HTMLParser.HTMLParser):
     ''' Subclass HTMLParser to extract name-value pairs from an html table ''' 
@@ -247,6 +307,10 @@ def __init_converters():
     register_converter(str, StrConverter())
     register_converter(dict, DictConverter())
 
+def _converters_for(to_type):
+    ''' Return a list of converters based on the target types in to_type '''
+    return [_strict_converter_for(_type) for _type in to_type]
+
 def convert_arg(to_type=None, using=None):
     ''' Method decorator to convert a slim-standard string arg to a specific
     python datatype. Only 1 of "to_type" or "using" should be supplied. 
@@ -269,36 +333,15 @@ def convert_arg(to_type=None, using=None):
     conversion_strategy = to_type and to_type or using
     if not conversion_strategy:
         raise TypeError('One of "to_type" or "using" must be supplied')
-    class _ReIterable(object):
-        ''' Class to allow repeatable iteration over convert_arg params ''' 
-        def __init__(self, iterable):
-            ''' Specify the iterable for repeatable iteration '''
-            self._iterable = iterable
-        def reset(self, num_params):
-            ''' Reset iteration and note num_params supplied in method call '''
-            self._num_params = num_params
-            self._iterator = iter(self._iterable)
-            return True
-        def next(self):
-            ''' Get next value from the iterable '''
-            try:
-                return next(self._iterator)
-            except StopIteration:
-                msg = 'convert_args(%s args) insufficient to convert %s params'
-                raise WaferSlimException(msg % (len(self._iterable), 
-                                                self._num_params))
     def conversion_decorator(base_fn):
         ''' callable that performs the actual decoration '''
         if type(conversion_strategy) is tuple:
-            converter = using and using or \
-                        [_strict_converter_for(_type) for _type in to_type]
-            reiterable = _ReIterable(converter)
-            _reset = reiterable.reset
-            _next = reiterable.next
+            converter = using and using or _converters_for(to_type)
         else:
             converter = using and using or _strict_converter_for(to_type)
-            _reset = lambda num_args: True
-            _next = lambda: converter
+        reiterable = _ReIterable(converter)
+        _reset = reiterable.reset
+        _next = reiterable.next
         return lambda self, *args: \
                 _reset(len(args)) and \
                 base_fn(self, 
