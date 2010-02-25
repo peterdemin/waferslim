@@ -10,6 +10,7 @@ Copyright 2009-2010 by the author(s). All rights reserved
 
 from waferslim import WaferSlimException
 from waferslim.execution import Results, ExecutionContext, Instructions
+import re
 
 BYTE_ENCODING = 'utf-8' #can be altered by server startup options
 _VERSION = 'Slim -- V0.1\n'
@@ -62,7 +63,7 @@ def _unpack_chunk(packed_chunk, chunks):
         _check_separator(packed_chunk, pos + item_len)
         pos += (item_len + _SEPARATOR_LENGTH)
         
-        if _is_chunk(item):
+        if is_chunk(item):
             sub_chunk = []
             _unpack_chunk(item, sub_chunk)
             chunks.append(sub_chunk)
@@ -73,13 +74,18 @@ def _unpack_chunk(packed_chunk, chunks):
         
 def _check_chunk(packed_chunk):
     ''' Verify format of an packed_chunk '''
-    _is_chunk(packed_chunk, raise_on_failure=True)
-        
-def _is_chunk(possible_chunk, raise_on_failure=False):
+    is_chunk(packed_chunk, raise_on_failure=True)
+    
+CHUNK_RE = re.compile('\[[0-9]{%s,%s}\:[0-9]{%s,%s}\:.*\]' % (_NUMERIC_LENGTH,
+                                                              _NUMERIC_LENGTH,
+                                                              _NUMERIC_LENGTH,
+                                                              _NUMERIC_LENGTH))
+    
+def is_chunk(possible_chunk, raise_on_failure=False):
     ''' Check for indicative start/end of an encoded chunk '''
     if possible_chunk.startswith(_START_CHUNK):
         if possible_chunk.endswith(_END_CHUNK):
-            return True
+            return CHUNK_RE.match(possible_chunk) is not None
         elif raise_on_failure: 
             msg = '%r has no trailing %r' % (possible_chunk, _END_CHUNK)
         else:
@@ -156,6 +162,7 @@ class RequestResponder(object):
             received += bytes_received
             
             message = self._get_message(message_length)
+            self.debug('Message::%s' % message)
             received += message_length
             
             if _DISCONNECT == message:

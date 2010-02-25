@@ -5,13 +5,16 @@ BDD-style Lancelot specifications for the behaviour of the core library classes
 import lancelot
 from lancelot.comparators import Type, Anything
 from waferslim.protocol import pack, unpack, UnpackingError, RequestResponder
+from waferslim.protocol import is_chunk
 from waferslim.execution import ExecutionContext, Results
 
 SAMPLE_DATA = [
-               ([],                 '[000000:]'),
-               (['hello'],          '[000001:000005:hello:]'),
-               (['hello','world'],  '[000002:000005:hello:000005:world:]'),
-               ([['element']],      '[000001:000024:[000001:000007:element:]:]')
+               ([],                    '[000000:]'),
+               (['hello'],             '[000001:000005:hello:]'),
+               (['hello','world'],     '[000002:000005:hello:000005:world:]'),
+               ([['element']],         '[000001:000024:[000001:000007:element:]:]'),
+               (['[square] braces'],   '[000001:000015:[square] braces:]'),
+               ([['[square] braces']], '[000001:000032:[000001:000015:[square] braces:]:]')
               ]
 
 class PackBehaviour(object):
@@ -134,5 +137,13 @@ def responder_handles_errors():
         request.recv(1024).will_return('bye'.encode('utf-8')),
         and_result=(7+9+7+3, 2+6))
 
+@lancelot.verifiable
+def is_chunk_should_ignore_square_braces_in_data():
+    spec = lancelot.Spec(is_chunk)
+    is_a_chunk = '[000002:000005:input:000006:output:]'
+    not_a_chunk='[a, b, c]'
+    spec.is_chunk(is_a_chunk).should_be(True)
+    spec.is_chunk(not_a_chunk).should_be(False)
+    
 if __name__ == '__main__':
     lancelot.verify()
