@@ -351,10 +351,14 @@ def convert_result_behaviour():
 def tabletable_constant_values():
     ''' Check TableTable constants for fitnesse cell-by-cell results '''
     spec = lancelot.Spec(TableTableConstants)
-    spec.cell_no_change().should_be('')
     spec.cell_correct().should_be('pass')
-    spec.cell_incorrect(23).should_be('23')
-    spec.cell_incorrect(None).should_be('None')
+    spec.cell_correct('message').should_be('pass:message')
+    spec.cell_incorrect(23).should_be('fail:23')
+    spec.cell_incorrect(None).should_be('fail:None')
+    spec.cell_ignore().should_be('ignore')
+    spec.cell_ignore('why').should_be('ignore:why')
+    spec.cell_report('this').should_be('report:this')
+    spec.cell_no_change().should_be('no change')
     spec.cell_error('Erk').should_be('error:Erk')
     spec.cell_error(-1).should_be('error:-1')
 

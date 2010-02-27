@@ -5,6 +5,7 @@ integrating various parts together via the example classes.
 
 import lancelot.comparators
 from waferslim.execution import Instructions, ExecutionContext, Results
+from waferslim.converters import TableTableConstants
 
 @lancelot.verifiable
 def decision_table():
@@ -116,12 +117,12 @@ def table_table():
     # 3rd result, 2nd item, 1st item is list with 1st "row" from results
     spec = lancelot.Spec(results.collection()[2][1][0]) 
     spec.it().should_be(lancelot.comparators.Type(list))
-    spec.it().should_be(['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''])
+    spec.it().should_be([TableTableConstants.cell_no_change() for cell in results.collection()[2][1][0]])
 
     # 3rd result, 2nd item, 2ndt item is list with 2nd "row" from results
     spec = lancelot.Spec(results.collection()[2][1][1]) 
     spec.it().should_be(lancelot.comparators.Type(list))
-    spec.it().should_not_be(['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''])
+    spec.it().should_not_be([TableTableConstants.cell_no_change() for cell in results.collection()[2][1][1]])
 
 @lancelot.verifiable
 def symbols():

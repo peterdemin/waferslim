@@ -52,15 +52,23 @@ class TableTableConstants(object):
     @classmethod
     def cell_no_change(cls):
         ''' Leave the cell uncoloured '''
-        return ''
+        return 'no change'
     @classmethod
-    def cell_correct(cls):
+    def cell_correct(cls, message=None):
         ''' Colour the cell green '''
-        return 'pass'
+        return 'pass%s' % (message and ':%s' % message or '')
     @classmethod
     def cell_incorrect(cls, actual_value):
         ''' Colour the cell red and provide an actual_value to display '''
-        return str(actual_value)
+        return 'fail:%s' % actual_value
+    @classmethod
+    def cell_ignore(cls, message=None):
+        ''' Colour the cell grey '''
+        return 'ignore%s' % (message and ':%s' % message or '')
+    @classmethod
+    def cell_report(cls, message):
+        ''' Show the message in the cell'''
+        return 'report:%s' % message 
     @classmethod
     def cell_error(cls, error_details):
         ''' Colour the cell yello and display the error_details '''

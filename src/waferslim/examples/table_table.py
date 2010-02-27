@@ -11,7 +11,7 @@ Fitnesse table markup:
 
 |Table:Bowling|
 |3|5|4|/|X||X||3|4|6|/|7|2|3|4|9|-|4|/|3|
-||8 ||28||51||68||75||92||101||108||117|||130|
+||8||28||51||68||75||92||101||108||117|||130|
 
 This test fails as the code for calculating scores is not implemented:
 all the "score" cells in the second row of the table will be coloured red
@@ -37,8 +37,8 @@ class Bowling(object):
             game.roll(roll)
         score_differences = [self._differs(i, expected_scores, actual_scores) \
                              for i in range(0, len(expected_scores)) ]
-        return [[TableTableConstants.cell_no_change() \
-                 for roll in rolls], score_differences]
+        return [[TableTableConstants.cell_no_change() for roll in rolls], 
+                score_differences]
     
     def _differs(self, at_position, expected, actual):
         ''' Determine if expected and actual results at_position match''' 
