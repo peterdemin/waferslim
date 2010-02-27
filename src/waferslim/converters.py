@@ -252,6 +252,16 @@ class DictConverter(Converter):
     TD_KEY_CLASS = 'class="hash_key"'
     TD_VALUE_CLASS = 'class="hash_value"'
     
+    def __init__(self, item_conversion_dict={}):
+        ''' If item_conversion_dict is passed, its key/value pairs
+        will determine how items within a converted dict are themselves
+        converted. E.g.
+          DictConverter({'id':int}) converts id values to int 
+          DictConverter({'emp':converter}) converts emp values using converter
+        See also waferslim.examples.hash_conversion 
+        ''' 
+        self._item_conversion_dict = item_conversion_dict
+    
     def to_string(self, a_dict):
         ''' Generate a str value in the fitnesse HashMarkupTable format 
         from a dict of typed name,value pairs '''
@@ -270,7 +280,17 @@ class DictConverter(Converter):
     def from_string(self, hash_table_markup):
         ''' Generate a dict of typed name,value pairs from a str value
         in the fitnesse HashMarkupTable format '''
-        return _MarkupHashTableParser().to_dict(hash_table_markup)
+        dict_of_str = _MarkupHashTableParser().to_dict(hash_table_markup)
+        return self.convert_items(dict_of_str)
+    
+    def convert_items(self, a_dict):
+        ''' Convert individual items within a dict via to_type or using
+        conversion strategies passed in constructor '''
+        for key in self._item_conversion_dict.keys():
+            if key in a_dict:
+                to_type_or_using = self._item_conversion_dict[key]
+                a_dict[key] = from_string(a_dict[key], to_type_or_using)
+        return a_dict
         
 def register_converter(for_type, converter_instance):
     ''' Register a converter_instance to be used with all for_type instances.
@@ -373,16 +393,28 @@ def converter_for(type_or_value):
     except KeyError:
         return _DEFAULT_CONVERTER
     
-def to_string(value):
-    ''' Shortcut for converter_for(value).to_string(value): stringify a value
-    using an appropriate registered converter '''
+def to_string(value, using=None):
+    ''' Shortcut for converter_for(value).to_string(value) or 
+    using.to_string(value). 
+    if using is specified: stringify value its to_string().
+    if using is unspecified: stringify value with an appropriate 
+        registered converter. 
+    ''' 
+    if using and hasattr(using, 'to_string'):
+        return using.to_string(value)
     return converter_for(value).to_string(value)
     
-def from_string(value, to_type):
-    ''' Shortcut for converter_for(type).from_string(value): de-stringify 
-    a value using an appropriate registered converter.
-    Note: to_type='int' (a str) is the same as to_type=int (a type)'''
-    return converter_for(to_type).from_string(value)
+def from_string(value, to_type_or_using):
+    ''' Shortcut for converter_for(to_type).from_string(value) or 
+    using.from_string(value). 
+    if to_type_or_using is a converter: de-stringify value with 
+        its from_string().
+    if to_type_or_using is a type: de-stringify value with an appropriate 
+        registered converter.
+    '''
+    if hasattr(to_type_or_using, 'from_string'):
+        return to_type_or_using.from_string(value)
+    return converter_for(to_type_or_using).from_string(value)
     
 def _strict_converter_for(type_or_value): 
     ''' Returns the exact converter for a particular type_or_value.

@@ -206,15 +206,15 @@ class IterableConverterBehaviour(object):
     def from_string_should_convert_items(self):
         ''' from_string() should convert types when required '''
         spec = lancelot.Spec(IterableConverter(to_type=int))
-        spec.from_string('1,2, 3').should_be((1,2,3))
+        spec.from_string('1,2, 3').should_be((1, 2, 3))
         spec = lancelot.Spec(IterableConverter(using=YesNoConverter()))
-        spec.from_string('yes, no,yes').should_be((True,False,True))
-        spec.from_string('no,yes, yes').should_be((False,True,True))
+        spec.from_string('yes, no,yes').should_be((True, False, True))
+        spec.from_string('no,yes, yes').should_be((False, True, True))
         spec = lancelot.Spec(IterableConverter(to_type=(int,bool)))
-        spec.from_string('1,yes').should_be((1,False))
+        spec.from_string('1,yes').should_be((1, False))
         spec = lancelot.Spec(IterableConverter(using=(YesNoConverter(),
                                                       YesNoConverter())))
-        spec.from_string('1,No').should_be((False,False))
+        spec.from_string('1,No').should_be((False, False))
 
 lancelot.grouping(IterableConverterBehaviour)
     
@@ -372,18 +372,44 @@ def dictconverter_behaviour():
     spec = lancelot.Spec(DictConverter())
     spec.to_string(dict).should_be(table_str)
     spec.from_string(table_str).should_be(dict)
+
+@lancelot.verifiable
+def dictconverter_convert_items_behaviour():
+    dict = {'id':'1', 'name':'guido'}
+    spec = lancelot.Spec(DictConverter())
+    spec.convert_items(dict).should_be({'id':'1', 'name':'guido'})
+
+    dict = {'id':'1', 'name':'guido'}
+    spec = lancelot.Spec(DictConverter({'id':int, 'name':str}))
+    spec.convert_items(dict).should_be({'id':1, 'name':'guido'})
+    
+    dict = {'id':'1', 'name':'guido'}
+    spec = lancelot.Spec(DictConverter({'id':int}))
+    spec.convert_items(dict).should_be({'id':1, 'name':'guido'})
+    
+    dict = {'id':'1', 'is_blah':'yes'}
+    spec = lancelot.Spec(DictConverter({'is_blah':YesNoConverter()}))
+    spec.convert_items(dict).should_be({'id':'1', 'is_blah':True})
+    
+    dict = {'id':'1', 'is_blah':'yes'}
+    spec = lancelot.Spec(DictConverter({'id':int, 'is_blah':YesNoConverter()}))
+    spec.convert_items(dict).should_be({'id':1, 'is_blah':True})
+
     
 @lancelot.verifiable
 def shortcut_to_string_behaviour():
     spec = lancelot.Spec(to_string)
     spec.to_string(1).should_be('1')
     spec.to_string(datetime.date(2010,2,25)).should_be('2010-02-25')
+    spec.to_string(False, using=YesNoConverter()).should_be('no')
     
 @lancelot.verifiable
 def shortcut_from_string_behaviour():
     spec = lancelot.Spec(from_string)
     spec.from_string('1', int).should_be(1)
-    spec.from_string('2010-02-25', datetime.date).should_be(datetime.date(2010,2,25))
+    a_date = datetime.date(2010,2,25)
+    spec.from_string('2010-02-25', datetime.date).should_be(a_date)
+    spec.from_string('2010-02-25', DateConverter()).should_be(a_date)
     
 if __name__ == '__main__':
     lancelot.verify()
