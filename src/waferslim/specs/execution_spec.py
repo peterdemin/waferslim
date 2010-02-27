@@ -1,7 +1,7 @@
 '''
 BDD-style Lancelot specifications for the behaviour of the core library classes
 '''
-from waferslim import WaferSlimException
+from waferslim import WaferSlimException, StopTestException
 
 import lancelot, logging, os, sys, types
 from lancelot.comparators import Type, SameAs, Anything, Contain
@@ -435,7 +435,38 @@ class InstructionsBehaviour(object):
             spec.execute(ctx, results).should_collaborate_with(
                 mock_fn.instruction_for(a_list[0]).will_return(mock_call),
                 mock_call.execute(ctx, results).will_raise(Exception(msg)),
-                results.failed(mock_call, msg)
+                results.failed(mock_call, msg, False)
+            )
+        finally:
+            # Put logger back to how it was
+            logger.setLevel(log_level)
+        ctx.cleanup_imports()
+
+    @lancelot.verifiable
+    def handles_stoptest_exceptions(self):
+        ''' if stop test exception is thrown  stop executing instructions '''
+        mock_fn = lancelot.MockSpec(name='mock_fn')
+        mock_call = lancelot.MockSpec(name='mock_call')
+        results = lancelot.MockSpec(name='results')
+        a_list = [
+                  ['id_', 'call', 'instance', 'fn', 'arg'],
+                  ['id_', 'call', 'instance2', 'fn2', 'arg2']
+                 ]
+        instructions = Instructions(a_list, 
+                                    lambda item: mock_fn.instruction_for(item))
+        spec = lancelot.Spec(instructions)
+        ctx = ExecutionContext()
+        msg = "I couldn't eat another thing. I'm absolutely stuffed."
+        
+        # Suppress warning log message that we know will be generated
+        logger = logging.getLogger('Instructions')
+        log_level = logger.getEffectiveLevel()
+        logger.setLevel(logging.ERROR)
+        try:
+            spec.execute(ctx, results).should_collaborate_with(
+                mock_fn.instruction_for(a_list[0]).will_return(mock_call),
+                mock_call.execute(ctx, results).will_raise(StopTestException(msg)),
+                results.failed(mock_call, msg, True)
             )
         finally:
             # Put logger back to how it was
@@ -466,6 +497,19 @@ class ResultsBehaviour(object):
         instruction = lancelot.MockSpec(name='instruction')
         spec = lancelot.Spec(Results())
         spec.failed(instruction, 'bucket')
+        spec.should_collaborate_with(
+            instruction.instruction_id().will_return('b')
+            )
+        spec.collection().should_be([['b', formatted_cause]])
+
+    @lancelot.verifiable
+    def failed_with_stoptest(self):
+        ''' failed(stop_test=True) should change formatted cause to include
+        the stop message '''
+        formatted_cause = '__EXCEPTION__:ABORT_SLIM_TEST: message:<<bucket>>'
+        instruction = lancelot.MockSpec(name='instruction')
+        spec = lancelot.Spec(Results())
+        spec.failed(instruction, 'bucket', True)
         spec.should_collaborate_with(
             instruction.instruction_id().will_return('b')
             )

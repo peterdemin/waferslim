@@ -15,7 +15,7 @@ from waferslim.converters import to_string
 
 _OK = 'OK'
 _EXCEPTION = '__EXCEPTION__:'
-
+_STOP_TEST= '%sABORT_SLIM_TEST:' % _EXCEPTION
 _NONE_STRING = '/__VOID__/'
 
 class Results(object):
@@ -38,10 +38,11 @@ class Results(object):
             str_result = self._convert_to_string(result)
         self._collected.append([instruction.instruction_id(), str_result])
         
-    def failed(self, instruction, cause):
+    def failed(self, instruction, cause, stop_test=False):
         ''' An instruction has failed due to some underlying cause '''
+        failed_type = stop_test and _STOP_TEST or _EXCEPTION
         self._collected.append([instruction.instruction_id(),
-                                '%s message:<<%s>>' % (_EXCEPTION, cause)])
+                                '%s message:<<%s>>' % (failed_type, cause)])
     
     def collection(self):
         ''' Get the collected list of results - modifications to the list 
@@ -86,7 +87,10 @@ class Instructions(object):
             except Exception, error:
                 self._logger.warn('Error executing %s:', instruction, 
                                   exc_info=1)
-                results.failed(instruction, error.args[0])
+                stop_test = 'stoptest' in type(error).__name__.lower()
+                results.failed(instruction, error.args[0], stop_test)
+                if stop_test: 
+                    break
     
     def _debug(self, instruction):
         ''' Log a debug message about the execution of Instruction-s '''
