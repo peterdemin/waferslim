@@ -352,11 +352,11 @@ class ExecutionContextBehaviour(object):
         ''' Bug #497245: cannot import twisted '''
         from os.path import join, exists
         for location in sys.path:
-            pkg=join(location, join('twisted', '__init__.py'))
+            pkg = join(location, join('twisted', '__init__.py'))
             if exists(pkg) \
             or exists(pkg + 'c') \
             or exists(pkg + 'o'):
-                twisted_found=True
+                twisted_found = True
                 break 
         lancelot.Spec(twisted_found).it().should_be(True)
         context = ExecutionContext(isolate_imports=False) #TODO: isolated?!

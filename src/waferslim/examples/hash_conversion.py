@@ -67,5 +67,5 @@ class People:
         raise KeyError(msg % (match_key, match))
     
     @convert_arg(to_type=int)
-    def set_id(self, id):
-        self._current_id = id
+    def set_id(self, value):
+        self._current_id = value

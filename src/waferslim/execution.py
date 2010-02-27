@@ -15,7 +15,7 @@ from waferslim.converters import to_string
 
 _OK = 'OK'
 _EXCEPTION = '__EXCEPTION__:'
-_STOP_TEST= '%sABORT_SLIM_TEST:' % _EXCEPTION
+_STOP_TEST = '%sABORT_SLIM_TEST:' % _EXCEPTION
 _NONE_STRING = '/__VOID__/'
 
 class Results(object):

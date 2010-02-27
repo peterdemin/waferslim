@@ -260,7 +260,7 @@ class DictConverter(Converter):
     TD_KEY_CLASS = 'class="hash_key"'
     TD_VALUE_CLASS = 'class="hash_value"'
     
-    def __init__(self, item_conversion_dict={}):
+    def __init__(self, item_conversion_dict=None):
         ''' If item_conversion_dict is passed, its key/value pairs
         will determine how items within a converted dict are themselves
         converted. E.g.
@@ -268,7 +268,9 @@ class DictConverter(Converter):
           DictConverter({'emp':converter}) converts emp values using converter
         See also waferslim.examples.hash_conversion 
         ''' 
-        self._item_conversion_dict = item_conversion_dict
+        Converter.__init__(self)
+        self._item_conversion_dict = item_conversion_dict \
+                                     and item_conversion_dict or {}
     
     def to_string(self, a_dict):
         ''' Generate a str value in the fitnesse HashMarkupTable format 

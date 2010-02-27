@@ -141,7 +141,7 @@ def responder_handles_errors():
 def is_chunk_should_ignore_square_braces_in_data():
     spec = lancelot.Spec(is_chunk)
     is_a_chunk = '[000002:000005:input:000006:output:]'
-    not_a_chunk='[a, b, c]'
+    not_a_chunk = '[a, b, c]'
     spec.is_chunk(is_a_chunk).should_be(True)
     spec.is_chunk(not_a_chunk).should_be(False)
     
