@@ -9,5 +9,5 @@ Copyright 2009-2010 by the author(s). All rights reserved
 class EchoFixture:
     ''' Simple fixture to echo a value back e.g. for variable substitution '''  
     def echo(self, value):
-        ''' Echo back the value passed in '''
+        ''' Echo back the value passed in as a str'''
         return value
