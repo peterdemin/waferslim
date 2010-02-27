@@ -6,7 +6,7 @@ from waferslim.converters import register_converter, converter_for, \
     convert_arg, convert_result, Converter, StrConverter, \
     TrueFalseConverter, YesNoConverter, FromConstructorConverter, \
     DateConverter, TimeConverter, DatetimeConverter, IterableConverter, \
-    TableTableConstants, DictConverter
+    TableTableConstants, DictConverter, to_string, from_string
 from waferslim import WaferSlimException
 import lancelot, datetime, threading
 from lancelot.comparators import FloatValue, Type
@@ -372,6 +372,18 @@ def dictconverter_behaviour():
     spec = lancelot.Spec(DictConverter())
     spec.to_string(dict).should_be(table_str)
     spec.from_string(table_str).should_be(dict)
+    
+@lancelot.verifiable
+def shortcut_to_string_behaviour():
+    spec = lancelot.Spec(to_string)
+    spec.to_string(1).should_be('1')
+    spec.to_string(datetime.date(2010,2,25)).should_be('2010-02-25')
+    
+@lancelot.verifiable
+def shortcut_from_string_behaviour():
+    spec = lancelot.Spec(from_string)
+    spec.from_string('1', int).should_be(1)
+    spec.from_string('2010-02-25', datetime.date).should_be(datetime.date(2010,2,25))
     
 if __name__ == '__main__':
     lancelot.verify()

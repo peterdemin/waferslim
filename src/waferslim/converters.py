@@ -307,9 +307,9 @@ def __init_converters():
     register_converter(str, StrConverter())
     register_converter(dict, DictConverter())
 
-def _converters_for(to_type):
-    ''' Return a list of converters based on the target types in to_type '''
-    return [_strict_converter_for(_type) for _type in to_type]
+def _converters_for(to_types):
+    ''' Return a list of converters based on the target types in to_types '''
+    return [_strict_converter_for(_type) for _type in to_types]
 
 def convert_arg(to_type=None, using=None):
     ''' Method decorator to convert a slim-standard string arg to a specific
@@ -377,6 +377,12 @@ def to_string(value):
     ''' Shortcut for converter_for(value).to_string(value): stringify a value
     using an appropriate registered converter '''
     return converter_for(value).to_string(value)
+    
+def from_string(value, to_type):
+    ''' Shortcut for converter_for(type).from_string(value): de-stringify 
+    a value using an appropriate registered converter.
+    Note: to_type='int' (a str) is the same as to_type=int (a type)'''
+    return converter_for(to_type).from_string(value)
     
 def _strict_converter_for(type_or_value): 
     ''' Returns the exact converter for a particular type_or_value.
