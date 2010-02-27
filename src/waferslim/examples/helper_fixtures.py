@@ -20,7 +20,7 @@ Fitnesse table markup:
 '''
 from waferslim.converters import convert_arg
 
-class Multiplication:
+class Multiplication(object):
     ''' Simple class to show how to use echo fixture and symbols.
     echo sets the symbol value, which is in turn passed to set_XXX()
     and then used in result()''' 
