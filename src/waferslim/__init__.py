@@ -18,5 +18,5 @@ class StopTestException(WaferSlimException):
     See http://localhost:8080/FitNesse.UserGuide.SliM.ExceptionHandling '''
     pass
 
-__all__ = ['WaferSlimException']
+__all__ = ['StopTestException']
 

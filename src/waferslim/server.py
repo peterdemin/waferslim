@@ -4,7 +4,8 @@ Server classes.
 Run this module to start the WaferSlimServer listening on a host / port:
 
     Usage: 
-        python -m waferslim.server [options]
+        python2 -m waferslim.server [options]
+        
     Options:
      -h, --help                  see the full list of options
      -p PORT, --port=...         listen on port PORT (required!)
@@ -23,8 +24,8 @@ Run this module to start the WaferSlimServer listening on a host / port:
     A "trailing" numeric value is assumed to be a port number
     if no explicit PORT is specified, so the following are equivalent
     within fitnesse :
-    COMMAND_PATTERN {python3 -m waferslim.server --syspath %p } 
-    COMMAND_PATTERN {python3 -m waferslim.server --syspath %p --port } 
+    COMMAND_PATTERN {python2 -m waferslim.server --syspath %p } 
+    COMMAND_PATTERN {python2 -m waferslim.server --syspath %p --port } 
     
 The latest source code is available at http://code.launchpad.net/waferslim.
 

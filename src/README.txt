@@ -37,7 +37,7 @@ needs to contain the following instructions:
 
   !define TEST_SYSTEM {slim} 
   !path /some/path/to/src
-  !define COMMAND_PATTERN {python -m waferslim.server --syspath %p }
+  !define COMMAND_PATTERN {python2 -m waferslim.server --syspath %p }
 
 This tells fitnesse to use the slim protocol, and to start the waferslim server
 using the sys.path listed in "!path". For multiple path entries, separate each 
