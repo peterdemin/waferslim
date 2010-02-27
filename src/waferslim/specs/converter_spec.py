@@ -170,11 +170,15 @@ def datetime_converter_behaviour():
     spec = lancelot.Spec(DatetimeConverter())
     date_part, time_part = '2009-02-28', '21:54:32.987654'
     datetime_value = datetime.datetime(2009, 2, 28, 21, 54, 32, 987654)
-    spec.to_string(datetime_value).should_be(
-        '2009-02-28 21:54:32.987654')
-    spec.from_string('2009-02-28 21:54:32.987654').should_be(
+    spec.to_string(datetime_value).should_be('%s %s' % (date_part, time_part))
+    spec.from_string('%s %s' % (date_part, time_part)).should_be(
         datetime.datetime.combine(DateConverter().from_string(date_part),
                                   TimeConverter().from_string(time_part))
+        )
+    time_trunc = '21:54:32' # No microseconds
+    spec.from_string('%s %s' % (date_part, time_trunc)).should_be(
+        datetime.datetime.combine(DateConverter().from_string(date_part),
+                                  TimeConverter().from_string(time_trunc))
         )
 
 class IterableConverterBehaviour(object):
@@ -237,6 +241,12 @@ class ConvertArgBehaviour(object):
     ''' Group of related specs for convert_arg() behaviour.
     convert_arg() is a function decorator that should convert  
     args supplied to the function into the required python type'''
+
+    @lancelot.verifiable
+    def fails_without_to_type_or_using(self):
+        ''' requires either to_type or using keyword to be specified '''
+        spec = lancelot.Spec(convert_arg)
+        spec.convert_arg().should_raise(TypeError)
 
     @lancelot.verifiable
     def returns_callable_to_type(self):
@@ -345,7 +355,7 @@ def convert_result_behaviour():
     spec.__call__(sut, 21, 1).should_be('22')
 
     spec = lancelot.Spec(convert_result)
-    spec.__call__(using=None).should_raise(TypeError)
+    spec.convert_result(using=None).should_raise(TypeError)
     
 @lancelot.verifiable
 def tabletable_constant_values():

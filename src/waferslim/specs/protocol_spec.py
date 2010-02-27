@@ -63,6 +63,15 @@ class UnpackBehaviour(object):
             UnpackingError("'[hello' has no trailing ']'"))
         spec.unpack('hello]').should_raise(
             UnpackingError("'hello]' has no leading '['"))
+
+    @lancelot.verifiable
+    def require_separators(self):
+        ''' Unpacking a string without separators should raise an error ''' 
+        spec = lancelot.Spec(unpack)
+        spec.unpack('[000000]').should_raise(
+            UnpackingError("'[000000]' has no ':' separator at pos 7"))
+        spec.unpack('[000001:000000]').should_raise(
+            UnpackingError("'[000001:000000]' has no ':' separator at pos 14"))
         
     @lancelot.verifiable
     def items_length_item_format(self):

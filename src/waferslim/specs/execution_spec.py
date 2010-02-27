@@ -41,6 +41,19 @@ class ExecutionContextBehaviour(object):
         lancelot.Spec(sys.path).it().should_not_contain(path)
         
         execution_context.cleanup_imports()
+
+    @lancelot.verifiable
+    def cleansup_sys_modules(self):
+        ''' cleanup_imports() should not choke on module that were imported
+        but are no longer in sys.modules '''
+        execution_context = ExecutionContext()
+        path = self._nonsrc_path(execution_context)
+        execution_context.add_import_path(path)
+        execution_context.get_module('import_me')
+        
+        spec = lancelot.Spec(execution_context)
+        del(sys.modules['import_me'])
+        spec.cleanup_imports().should_not_raise(Exception)
         
     @lancelot.verifiable
     def get_isolated_imported_module(self):
