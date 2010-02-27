@@ -3,8 +3,8 @@ BDD-style Lancelot specifications for the behaviour of the core library classes
 '''
 
 import lancelot
-from lancelot.comparators import Type
-from waferslim.instructions import Instruction, pythonic, \
+from lancelot.comparators import Type, Anything
+from waferslim.instructions import Instruction, \
                                    Make, Import, Call, CallAndAssign
 from waferslim.execution import ParamsConverter
 from waferslim.specs.spec_classes import ClassWithNoArgs, ClassWithOneArg, \
@@ -143,19 +143,6 @@ class MakeExceptionBehaviour(object):
 lancelot.grouping(MakeExceptionBehaviour)
 
 @lancelot.verifiable
-def pythonic_method_names():
-    ''' pythonic should convert camelCase names to pythonic 
-    non_camel_case ones'''
-    spec = lancelot.Spec(pythonic)
-    names = {'method':'method',
-             'aMethod':'a_method',
-             'camelsHaveHumps': 'camels_have_humps',
-             'pythons_are_snakes':'pythons_are_snakes',
-             'Parrot':'parrot' }
-    for camel, python in names.items():
-        spec.pythonic(camel).should_be(python)
-
-@lancelot.verifiable
 def call_invokes_method():
     ''' Call instruction should get an instance from context and execute a
     callable method on it, returning the results '''
@@ -173,8 +160,8 @@ def call_invokes_method():
         spec = lancelot.Spec(call_instruction)
         spec.execute(execution_context, results).should_collaborate_with(
             execution_context.get_instance(params[0]).will_return(instance),
+            execution_context.target_for(instance, params[1]).will_return(lambda life: 'meaning'),
             execution_context.to_args(params, 2).will_return(('life',)),
-            instance.a_method('life').will_return('meaning'),
             results.completed(call_instruction, 'meaning')
             )
 
@@ -193,6 +180,9 @@ def call_invokes_system_under_test():
         
         spec.execute(execution_context, results).should_collaborate_with(
             execution_context.get_instance(params[0]).will_return(instance),
+            execution_context.target_for(instance, params[1]).will_return(None),
+            execution_context.target_for(instance, 'sut').will_return(instance.sut),
+            execution_context.target_for(Anything(), params[1]).will_return(lambda: False),
             execution_context.to_args(params, 2).will_return(()),
             results.completed(call_instruction, False)
             )
@@ -229,6 +219,8 @@ class CallExceptionBehaviour(object):
         
         spec.execute(execution_context, results).should_collaborate_with(
             execution_context.get_instance(params[0]).will_return(instance),
+            execution_context.target_for(instance, params[1]).will_return(None),
+            execution_context.target_for(instance, 'sut').will_return(None),
             execution_context.get_library_method(params[1]).will_return(None),
             results.failed(call_instruction, cause)
             )
@@ -277,6 +269,7 @@ def call_and_assign_sets_variable():
     spec = lancelot.Spec(call_and_assign)
     spec.execute(execution_context, results).should_collaborate_with(
             execution_context.get_instance('list').will_return([]),
+            execution_context.target_for([], '__len__').will_return(lambda: 0),
             execution_context.to_args(['list', '__len__'], 2).will_return(()),
             execution_context.store_symbol('symbol', 0),
             results.completed(call_and_assign, 0)

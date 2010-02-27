@@ -6,7 +6,7 @@ from waferslim import WaferSlimException
 import lancelot, logging, os, sys, types
 from lancelot.comparators import Type, SameAs, Anything, Contain
 from waferslim.execution import ExecutionContext, Results, Instructions, \
-                                instruction_for, ParamsConverter
+                                instruction_for, ParamsConverter, pythonic
 from waferslim.instructions import Make, Import, Call, CallAndAssign, \
                                    Instruction
 from waferslim.specs.spec_classes import ClassWithNoArgs
@@ -169,6 +169,38 @@ class ExecutionContextBehaviour(object):
             other_context.cleanup_imports()
 
     @lancelot.verifiable
+    def get_type_all_lowercaps(self):
+        ''' get_type(namewithoutspaces) => get_type (Namewithoutspaces) '''
+        context = ExecutionContext()
+        context.add_type_prefix('waferslim.examples.helper_fixtures')
+        multiplication = context.get_type('Multiplication')
+        spec = lancelot.Spec(context)
+        spec.get_type('multiplication').should_be(multiplication)
+        
+        context.cleanup_imports()
+        
+    @lancelot.verifiable
+    def target_for_tries_pythonic_conversion(self):
+        ''' target_for() should look first for a pythonic method name and
+        if that is not found then look for the original method name '''
+        method_name = 'aMethod'
+        class ClassWithAMethod(object):
+            def a_method(self):
+                pass 
+        instance = ClassWithAMethod()
+        context = ExecutionContext()
+        
+        spec = lancelot.Spec(context)
+        spec.target_for(instance, method_name).should_be(instance.a_method)
+
+        class ClassWithACamelCaseMethod(object):
+            def aMethod(self):
+                pass 
+        instance = ClassWithACamelCaseMethod()
+        spec = lancelot.Spec(context)
+        spec.target_for(instance, method_name).should_be(instance.aMethod)
+        
+    @lancelot.verifiable
     def handles_builtins(self):
         ''' get_type() should handle builtin types and get_module() should
         not affect sys.modules when module was already loaded, e.g. __builtin__'''
@@ -219,13 +251,16 @@ class ExecutionContextBehaviour(object):
         context = ExecutionContext()
         spec = lancelot.Spec(context)
         spec.get_library_method('do_come_in_mr_death').should_be(None)
+        spec.get_library_method('doComeInMrDeath').should_be(None)
 
         context.store_instance('libraryXYZ', mr_death)
-        spec = lancelot.Spec(context.get_library_method('do_come_in_mr_death'))
-        spec.__call__().should_be(mr_death.do_come_in_mr_death())
+        spec = lancelot.Spec(context)
+        spec.get_library_method('do_come_in_mr_death').should_be(mr_death.do_come_in_mr_death)
+        spec.get_library_method('doComeInMrDeath').should_be(mr_death.do_come_in_mr_death)
 
         spec = lancelot.Spec(ExecutionContext())
         spec.get_library_method('do_come_in_mr_death').should_be(None)
+        spec.get_library_method('doComeInMrDeath').should_be(None)
         
         context.cleanup_imports()
         
@@ -256,12 +291,13 @@ class ExecutionContextBehaviour(object):
         context.store_instance('library1', mr_death)
         context.store_instance('library2', reaper)
         
-        spec = lancelot.Spec(context.get_library_method('do_come_in_mr_death'))
-        spec.__call__().should_be(reaper.do_come_in_mr_death())
+        spec = lancelot.Spec(context)
+        spec.get_library_method('do_come_in_mr_death').should_be(reaper.do_come_in_mr_death)
 
         context.store_instance('library2', mr_death)
-        spec = lancelot.Spec(context.get_library_method('do_come_in_mr_death'))
-        spec.__call__().should_be(mr_death.do_come_in_mr_death())
+        spec = lancelot.Spec(context)
+        spec.get_library_method('do_come_in_mr_death').should_be(mr_death.do_come_in_mr_death)
+        spec.get_library_method('doComeInMrDeath').should_be(mr_death.do_come_in_mr_death)
         
         context.cleanup_imports()
 
@@ -304,6 +340,13 @@ class ExecutionContextBehaviour(object):
         ctx1.cleanup_imports()
         ctx2.cleanup_imports()
     
+    @lancelot.verifiable
+    def stores_symbol_as_str(self):
+        ''' store_symbol(name, value) should store the value as a str '''
+        spec = lancelot.Spec(ExecutionContext())
+        spec.when(spec.store_symbol('id', 1))
+        spec.then(spec.get_symbol('id')).should_be('1')
+        
     @lancelot.verifiable
     def imports_twisted(self):
         ''' Bug #497245: cannot import twisted '''
@@ -485,15 +528,8 @@ def params_converter_behaviour():
 
     execution_context = lancelot.MockSpec('execution_context')
     spec = lancelot.Spec(ParamsConverter(execution_context))
-    spec.to_args(['id=$id'], 0).should_collaborate_with(
+    spec.to_args(['$id'], 0).should_collaborate_with(
         execution_context.get_symbol('id').will_return('20'),
-        and_result=(('id=20',))
-        )
-
-    execution_context = lancelot.MockSpec('execution_context')
-    spec = lancelot.Spec(ParamsConverter(execution_context))
-    spec.to_args(['$int'], 0).should_collaborate_with(
-        execution_context.get_symbol('int').will_return(20),
         and_result=(('20',))
         )
     
@@ -512,6 +548,19 @@ def params_converter_behaviour():
         execution_context.get_symbol('s11').will_return('N'),
         and_result=(('IRON',))
         )
+
+@lancelot.verifiable
+def pythonic_method_names():
+    ''' pythonic should convert camelCase names to pythonic 
+    non_camel_case ones'''
+    spec = lancelot.Spec(pythonic)
+    names = {'method':'method',
+             'aMethod':'a_method',
+             'camelsHaveHumps': 'camels_have_humps',
+             'pythons_are_snakes':'pythons_are_snakes',
+             'Parrot':'parrot' }
+    for camel, python in names.items():
+        spec.pythonic(camel).should_be(python)
 
 if __name__ == '__main__':
     lancelot.verify()

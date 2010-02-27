@@ -74,17 +74,6 @@ class Make(Instruction):
                                   self._params[1], error.args[0])
             results.failed(self, cause)
 
-def pythonic(method_name):
-    ''' Returns a method_name converted from camelCase to pythonic_case'''
-    return method_name[0].lower() + \
-        ''.join([_underscored_lowercase(char) for char in method_name[1:]])
-
-def _underscored_lowercase(char):
-    ''' Returns _<lowercase char> if char is uppercase; char otherwise'''
-    if char.isupper():
-        return '_%s' % char.lower()
-    return char
-
 class Call(Instruction):
     ''' A "call <instance>, <function>, <args>..." instruction '''
     
@@ -104,12 +93,13 @@ class Call(Instruction):
         instance, target = execution_context.get_instance(instance_name), None
         
         if instance is not None:
-            target = self._target_for(instance, target_name)
+            target = execution_context.target_for(instance, target_name)
             if not target:
-                sut = self._target_for(instance, 'sut')
+                sut = execution_context.target_for(instance, 'sut')
                 sut = sut and (hasattr(sut, '__call__') and sut() or sut) 
-                target = sut and self._target_for(sut, target_name) or None
-        
+                target = sut \
+                         and execution_context.target_for(sut, target_name) \
+                         or None
         if not target:
             target = execution_context.get_library_method(target_name)
         
@@ -124,20 +114,6 @@ class Call(Instruction):
             results.failed(self, cause)
             return (None, False)
     
-    def _target_for(self, instance, method_name, convert_name=True):
-        ''' Return an instance's named method to use as a call target. 
-        If a pythonically_named method exists it will be used, otherwise the
-        fitnesse standard camelCase method will be returned it it exists. '''
-        try:
-            return getattr(instance, 
-                           convert_name \
-                           and pythonic(method_name) \
-                           or method_name)
-        except AttributeError:
-            return convert_name \
-                    and self._target_for(instance, method_name, False) \
-                    or None
-        
     def _result(self, execution_context, target, params):
         ''' Perform params $variable substitution in the execution_context and 
         then call target() '''  

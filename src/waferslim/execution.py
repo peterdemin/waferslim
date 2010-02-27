@@ -11,7 +11,7 @@ import __builtin__, logging, re, sys, threading
 from waferslim import WaferSlimException
 from waferslim.instructions import Instruction, \
                                    Make, Call, CallAndAssign, Import
-from waferslim.converters import converter_for
+from waferslim.converters import to_string
 
 _OK = 'OK'
 _EXCEPTION = '__EXCEPTION__:'
@@ -22,11 +22,11 @@ class Results(object):
     ''' Collecting parameter for results of Instruction execute() methods '''
     NO_RESULT_EXPECTED = object()
     
-    def __init__(self, converter=converter_for):
+    def __init__(self, convert_to_string=to_string):
         ''' Set up the list to hold the collected results and obtain the
         currently registered type converters '''
         self._collected = []
-        self._converter = converter
+        self._convert_to_string = convert_to_string
     
     def completed(self, instruction, result=NO_RESULT_EXPECTED):
         ''' An instruction has completed, perhaps with a result '''
@@ -35,7 +35,7 @@ class Results(object):
         elif result == None:
             str_result = _NONE_STRING
         else:
-            str_result = self._converter(result).to_string(result)
+            str_result = self._convert_to_string(result)
         self._collected.append([instruction.instruction_id(), str_result])
         
     def failed(self, instruction, cause):
@@ -116,9 +116,20 @@ class ParamsConverter(object):
     def _match(self, match):
         ''' Actually perform the substitution identified by the match '''
         if match:
-            return str(self._execution_context.get_symbol(match.groups()[0]))
+            return self._execution_context.get_symbol(match.groups()[0])
         return ''
-   
+
+def pythonic(method_name):
+    ''' Returns a method_name converted from camelCase to pythonic_case'''
+    return method_name[0].lower() + \
+        ''.join([_underscored_lowercase(char) for char in method_name[1:]])
+
+def _underscored_lowercase(char):
+    ''' Returns _<lowercase char> if char is uppercase; char otherwise'''
+    if char.isupper():
+        return '_%s' % char.lower()
+    return char
+ 
 class ExecutionContext(object):
     ''' Contextual execution environment to allow simultaneous code executions
     to take place in isolation from each other - see keepalive startup arg.'''
@@ -155,6 +166,8 @@ class ExecutionContext(object):
                     return self.get_type(prefixed_name)
                 except (TypeError, ImportError):
                     pass
+            if fully_qualified_name[0].islower():
+                return self.get_type(fully_qualified_name.title())
             msg = 'Type %s is not in a module: perhaps you want to Import it?'
             raise TypeError(msg % fully_qualified_name)
 
@@ -230,12 +243,27 @@ class ExecutionContext(object):
         self._modules[mod.__name__] = mod
         return mod
     
+    def target_for(self, instance, method_name, convert_name=True):
+        ''' Return an instance's named method to use as a call target. 
+        If a pythonically_named method exists it will be used, otherwise the
+        fitnesse standard camelCase method will be returned it it exists. '''
+        try:
+            return getattr(instance, 
+                           convert_name \
+                           and pythonic(method_name) \
+                           or method_name)
+        except AttributeError:
+            return convert_name \
+                    and self.target_for(instance, method_name, False) \
+                    or None
+    
     def get_library_method(self, name):
         ''' Get a method from the library '''
         self._debug('Getting library method %s' % name)
         for instance in self._libraries:
-            if hasattr(instance, name):
-                return getattr(instance, name)
+            target = self.target_for(instance, name, True)
+            if target:
+                return target
         return None
     
     def warn_polluting_library_methods(self, library):
@@ -275,7 +303,7 @@ class ExecutionContext(object):
     def store_symbol(self, name, value):
         ''' Add a name=value pair to the context symbols '''
         self._debug('Storing symbol %s=%r' % (name, value))
-        self._symbols[name] = value
+        self._symbols[name] = to_string(value)
 
     def get_symbol(self, name):
         ''' Get value from a name=value pair in the context symbols '''
