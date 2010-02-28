@@ -11,24 +11,28 @@ Fitnesse table markup:
 
 |script|class with pythonic method names|
 
+All tests will pass...
+
 |script|
 |invoke|a method|with|hello world|
 |invoke|a Method|with|hello World|
 |invoke|A Method|with|Hello World|
 |invoke|a_method|with|hello_world|
 |invoke|aMethod|with|helloWorld|
+|invoke|AMethod|with|Hello World|
 
 |script|class with camel case method names|
 
+"A Method", "a_method" and "AMethod" will fail...
+
 |script|
 |invoke|a method|with|hello world|
 |invoke|a Method|with|hello World|
 |invoke|A Method|with|Hello World|
 |invoke|a_method|with|hello_world|
 |invoke|aMethod|with|helloWorld|
+|invoke|AMethod|with|Hello World|
 
-Note that all the tests will pass for ClassWithPythonicMethodNames,
-but "A Method" and "a_method" will fail for ClassWithCamelCaseMethodNames. 
 '''
 from waferslim.fixtures import EchoFixture
 
