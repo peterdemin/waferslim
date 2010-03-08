@@ -1,7 +1,7 @@
 '''
 BDD-style Lancelot specifications for the behaviour of the core library classes
 '''
-from waferslim import WaferSlimException, StopTestException
+from waferslim import StopTestException
 
 import lancelot, logging, os, sys, types
 from lancelot.comparators import Type, SameAs, Anything, Contain
@@ -338,17 +338,19 @@ class ExecutionContextBehaviour(object):
     def stores_symbol(self):
         ''' store_symbol(name, value) should put the name,value pair in the
         symbols dict where it can be retrieved by get_symbol(name). 
-        symbols should be isolated across execution contexts'''
+        symbols should be isolated across execution contexts.
+        If a symbol is undefined then the value returned is the name of the 
+        symbol prefixed with $'''
         ctx1 = ExecutionContext()
         spec = lancelot.Spec(ctx1)
-        spec.get_symbol('another_bucket').should_raise(WaferSlimException)
+        spec.get_symbol('another_bucket').should_be('$another_bucket')
 
         spec.when(spec.store_symbol('another_bucket', 'for monsieur'))
         spec.then(spec.get_symbol('another_bucket')).should_be('for monsieur')
 
         ctx2 = ExecutionContext()
         spec = lancelot.Spec(ctx2)
-        spec.get_symbol('another_bucket').should_raise(WaferSlimException)
+        spec.get_symbol('another_bucket').should_be('$another_bucket')
         
         ctx1.cleanup_imports()
         ctx2.cleanup_imports()
@@ -604,6 +606,18 @@ def params_converter_behaviour():
         execution_context.get_symbol('s1').will_return('O'),
         execution_context.get_symbol('s11').will_return('N'),
         and_result=(('IRON',))
+        )
+
+    execution_context = lancelot.MockSpec('execution_context')
+    long_multiline_expression = '''$a(long{ \
+    multi-line expression})
+    $and(another{ \
+    multi-line expression})'''
+    spec = lancelot.Spec(ParamsConverter(execution_context))
+    spec.to_args([long_multiline_expression], 0).should_collaborate_with(
+        execution_context.get_symbol('a').will_return('$a'),
+        execution_context.get_symbol('and').will_return('$and'),
+        and_result=(('%s' % long_multiline_expression,))
         )
 
 @lancelot.verifiable

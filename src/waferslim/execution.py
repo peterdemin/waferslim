@@ -115,7 +115,7 @@ class ParamsConverter(object):
         ''' Lookup (recursively if required) a possible symbol '''
         if isinstance(possible_symbol, list):
             return self.to_args(possible_symbol, 0)
-        return ParamsConverter._SYMBOL_PATTERN.sub(self._match, possible_symbol)
+        return ParamsConverter._SYMBOL_PATTERN.sub(self._match, possible_symbol, re.S)
     
     def _match(self, match):
         ''' Actually perform the substitution identified by the match '''
@@ -316,7 +316,7 @@ class ExecutionContext(object):
             self._debug('Restoring symbol %s=%r' % (name, value))
             return value
         except KeyError:
-            raise WaferSlimException('Unknown symbol %s' % name)
+            return '$%s' % name
     
     def to_args(self, params, from_position):
         ''' Delegate args construction to the ParamsConverter '''
