@@ -76,10 +76,10 @@ def _check_chunk(packed_chunk):
     ''' Verify format of an packed_chunk '''
     is_chunk(packed_chunk, raise_on_failure=True)
     
-CHUNK_RE = re.compile('\[[0-9]{%s,%s}\:[0-9]{%s,%s}\:.*\]' % (_NUMERIC_LENGTH,
-                                                              _NUMERIC_LENGTH,
-                                                              _NUMERIC_LENGTH,
-                                                              _NUMERIC_LENGTH))
+CHUNK_RE = re.compile('^\[[0-9]{%s,%s}\:[0-9]{%s,%s}\:' % (_NUMERIC_LENGTH,
+                                                           _NUMERIC_LENGTH,
+                                                           _NUMERIC_LENGTH,
+                                                           _NUMERIC_LENGTH))
     
 def is_chunk(possible_chunk, raise_on_failure=False):
     ''' Check for indicative start/end of an encoded chunk '''

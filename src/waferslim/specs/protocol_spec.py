@@ -154,5 +154,18 @@ def is_chunk_should_ignore_square_braces_in_data():
     spec.is_chunk(is_a_chunk).should_be(True)
     spec.is_chunk(not_a_chunk).should_be(False)
     
+@lancelot.verifiable
+def is_chunk_should_ignore_multiple_lines_in_data():
+    spec = lancelot.Spec(is_chunk)
+    is_a_chunk = '''[000002:000005:in
+    put:000006:out
+    put:]'''
+    not_a_chunk = '''[in
+    put a, in
+    put b, in
+    put c]'''
+    spec.is_chunk(is_a_chunk).should_be(True)
+    spec.is_chunk(not_a_chunk).should_be(False)
+
 if __name__ == '__main__':
     lancelot.verify()
