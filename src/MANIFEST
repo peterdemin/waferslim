@@ -20,6 +20,7 @@ waferslim/examples/hash_conversion.py
 waferslim/examples/helper_fixtures.py
 waferslim/examples/iterable_conversion.py
 waferslim/examples/library.py
+waferslim/examples/method_names.py
 waferslim/examples/query_table.py
 waferslim/examples/script_table.py
 waferslim/examples/system_under_test.py
