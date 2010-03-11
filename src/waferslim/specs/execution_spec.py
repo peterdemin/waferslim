@@ -340,7 +340,7 @@ class ExecutionContextBehaviour(object):
         symbols dict where it can be retrieved by get_symbol(name). 
         symbols should be isolated across execution contexts.
         If a symbol is undefined then the value returned is the name of the 
-        symbol prefixed with $'''
+        symbol prefixed with $ -- Bug #537020'''
         ctx1 = ExecutionContext()
         spec = lancelot.Spec(ctx1)
         spec.get_symbol('another_bucket').should_be('$another_bucket')
@@ -382,6 +382,21 @@ class ExecutionContextBehaviour(object):
         spec.get_module('twisted').should_be(Type(types.ModuleType))
         
         context.cleanup_imports()
+        
+    @lancelot.verifiable
+    def log_handles_unrepresentable_objects(self):
+        ''' Bug #537032: repr(bad_object) when logging is fatal'''
+        class Unrepresentable(object):
+            def __repr__(self):
+                return self._noSuchAttribute
+        
+        level = logging.getLogger('Execution').level
+        try:
+            logging.getLogger('Execution').setLevel(logging.ERROR)
+            ctx = ExecutionContext()
+            ctx.store_instance('ugh', Unrepresentable())
+        finally:
+            logging.getLogger('Execution').setLevel(level)
 
 lancelot.grouping(ExecutionContextBehaviour)
 

@@ -8,7 +8,6 @@ The latest source code is available at http://code.launchpad.net/waferslim.
 Copyright 2009-2010 by the author(s). All rights reserved 
 '''
 import __builtin__, logging, re, sys, threading
-from waferslim import WaferSlimException
 from waferslim.instructions import Instruction, \
                                    Make, Call, CallAndAssign, Import
 from waferslim.converters import to_string
@@ -67,6 +66,13 @@ def instruction_for(params):
     except KeyError:
         return Instruction(instruction_id, [instruction_type])
 
+def _debug(logger, msg, substitutions):
+    ''' Log to logger a msg with potentially some substitutions '''
+    try:
+        logger.debug(msg % substitutions)
+    except:
+        logger.warn('Error logging %s:' % msg, exc_info=1)
+
 class Instructions(object):
     ''' Container for executable sequence of Instruction-s '''
     
@@ -81,7 +87,7 @@ class Instructions(object):
         ''' Create and execute Instruction-s, collecting the results '''
         for item in self._unpacked_list:
             instruction = self._instruction_for(item)
-            self._debug(instruction)
+            _debug(self._logger, 'Executing %r', instruction)
             try:
                 instruction.execute(execution_context, results)
             except Exception, error:
@@ -91,10 +97,6 @@ class Instructions(object):
                 results.failed(instruction, error.args[0], stop_test)
                 if stop_test: 
                     break
-    
-    def _debug(self, instruction):
-        ''' Log a debug message about the execution of Instruction-s '''
-        self._logger.debug('Executing %r' % instruction)
 
 class ParamsConverter(object):
     ''' Converter from (possibly nested) list of strings (possibly symbols)
@@ -239,9 +241,9 @@ class ExecutionContext(object):
             return self._modules[args[0]]
         except KeyError:
             pass
-        self._debug('Importing %s%s' 
-                           % (self._isolate_imports and 'isolated ' or '', 
-                              args[0]))
+        _debug(self._logger, 'Importing %s%s', 
+                           (self._isolate_imports and 'isolated ' or '', 
+                            args[0]))
         mod = ExecutionContext._REAL_IMPORT(*args, **kwds)
         self._imported[mod.__name__] = mod
         self._modules[mod.__name__] = mod
@@ -263,7 +265,7 @@ class ExecutionContext(object):
     
     def get_library_method(self, name):
         ''' Get a method from the library '''
-        self._debug('Getting library method %s' % name)
+        _debug(self._logger, 'Getting library method %s', name)
         for instance in self._libraries:
             target = self.target_for(instance, name, True)
             if target:
@@ -281,7 +283,7 @@ class ExecutionContext(object):
     
     def _store_library_instance(self, value):
         ''' Add methods in a class instance to the library '''
-        self._debug('Storing library instance %r' % value)
+        _debug(self._logger, 'Storing library instance %r', value)
         self.warn_polluting_library_methods(value)
         self._libraries.insert(0, value)
     
@@ -290,7 +292,7 @@ class ExecutionContext(object):
         if name.lower().startswith('library'):
             self._store_library_instance(value)
         else:
-            self._debug('Storing instance %s=%r' % (name, value))
+            _debug(self._logger, 'Storing instance %s=%r', (name, value))
             self._instances[name] = value
 
     def get_instance(self, name):
@@ -306,14 +308,14 @@ class ExecutionContext(object):
     
     def store_symbol(self, name, value):
         ''' Add a name=value pair to the context symbols '''
-        self._debug('Storing symbol %s=%r' % (name, value))
+        _debug(self._logger, 'Storing symbol %s=%r', (name, value))
         self._symbols[name] = to_string(value)
 
     def get_symbol(self, name):
         ''' Get value from a name=value pair in the context symbols '''
         try:
             value = self._symbols[name]
-            self._debug('Restoring symbol %s=%r' % (name, value))
+            _debug(self._logger, 'Restoring symbol %s=%r', (name, value))
             return value
         except KeyError:
             return '$%s' % name
@@ -321,7 +323,3 @@ class ExecutionContext(object):
     def to_args(self, params, from_position):
         ''' Delegate args construction to the ParamsConverter '''
         return self._params_converter.to_args(params, from_position)
-
-    def _debug(self, msg):
-        ''' Log a debug message '''
-        self._logger.debug(msg)
