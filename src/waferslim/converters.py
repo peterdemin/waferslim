@@ -372,11 +372,12 @@ def convert_arg(to_type=None, using=None):
         reiterable = _ReIterable(converter)
         _reset = reiterable.reset
         _next = reiterable.next
-        return lambda self, *args: \
-                _reset(len(args)) and \
-                base_fn(self, 
-                        *tuple([_next().from_string(arg) for arg in args])) \
-                or None 
+        def convert_args_and_return_result(self, *args):
+            ''' callable that delegates to the decorated fn '''
+            _reset(len(args))
+            return base_fn(self, 
+                    *tuple([_next().from_string(arg) for arg in args]))
+        return convert_args_and_return_result 
     return conversion_decorator
 
 def convert_result(using):

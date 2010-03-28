@@ -339,6 +339,15 @@ class ConvertArgBehaviour(object):
         ''' decorator should fail for to_type without a registered converter'''
         spec = lancelot.Spec(convert_arg(to_type=ASystemUnderTest))
         spec.__call__(lambda: None).should_raise(KeyError)
+        
+    @lancelot.verifiable
+    def handles_false_return_values(self):
+        ''' decorator should handle 'false' return values (0, [], ...) '''
+        add = ASystemUnderTest.add
+        sut = ASystemUnderTest()
+        decorated_fn = convert_arg(to_type=(int, int))(add)
+        spec = lancelot.Spec(decorated_fn)
+        spec.__call__(sut, '0', '0').should_be(0)
 
 lancelot.grouping(ConvertArgBehaviour)
 
