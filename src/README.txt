@@ -16,6 +16,15 @@ GNU Lesser General Public License along with this program.  If not,
 see <http://www.gnu.org/licenses/> 
 
 #################################
+# Installing waferslim          #
+#################################
+To install waferslim as a site-package run (from this directory) 
+
+ python2 setup.py install 
+
+For more information see http://docs.python.org/install/index.html#the-new-standard-distutils
+
+#################################
 # Using waferslim with fitnesse #
 #################################
 This release of waferslim has been tested with the fitnesse distribution 
