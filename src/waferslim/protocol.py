@@ -13,6 +13,7 @@ from waferslim.execution import Results, ExecutionContext, Instructions
 import re
 
 BYTE_ENCODING = 'utf-8' #can be altered by server startup options
+BUFFER_SIZE = 4098
 _VERSION = 'Slim -- V0.1\n'
 _START_CHUNK = '['
 _END_CHUNK = ']'
@@ -194,7 +195,7 @@ class RequestResponder(object):
         message, remaining = '', message_length
         while remaining > 0:
             # Try 1k to work around incorrect message_length with utf-8
-            data = self.request.recv(1024) 
+            data = self.request.recv(BUFFER_SIZE) 
             self.debug('Recv %s bytes...' % len(data))
             message += data
             remaining = message_length - len(message)
