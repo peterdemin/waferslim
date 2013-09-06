@@ -1,4 +1,0 @@
-include COPYING
-include COPYING.LESSER
-recursive-include non-waferslim *.py
-global-include *.conf
