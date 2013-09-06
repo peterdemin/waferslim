@@ -15,7 +15,7 @@ import sys
 
 BYTE_ENCODING = 'utf-8' #can be altered by server startup options
 BUFFER_SIZE = 4098
-_VERSION = 'Slim -- V0.1\n'
+_VERSION = 'Slim -- V0.3\n'
 _START_CHUNK = '['
 _END_CHUNK = ']'
 _SEPARATOR = ':'
