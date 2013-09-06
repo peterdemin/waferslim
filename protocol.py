@@ -172,7 +172,8 @@ class RequestResponder(object):
             try:
                 instruction_list = instructions(unpack(message))
                 instruction_list.execute(execution_context, result)
-            except UnpackingError, error:
+            except UnpackingError:
+                error = sys.exc_info()[1]
                 result.failed(error, error.description())
 
             results = result.collection()

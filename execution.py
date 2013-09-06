@@ -90,7 +90,8 @@ class Instructions(object):
             _debug(self._logger, 'Executing %r', instruction)
             try:
                 instruction.execute(execution_context, results)
-            except Exception, error:
+            except Exception:
+                error = sys.exc_info()[1]
                 self._logger.warn('Error executing %s:', instruction,
                                   exc_info=1)
                 stop_test = 'stoptest' in type(error).__name__.lower()

@@ -57,7 +57,8 @@ class SlimRequestHandler(SocketServer.BaseRequestHandler,
             received, sent = self.respond_to_request(isolate_imports=SlimRequestHandler.ISOLATE_IMPORTS)
             done_msg = 'Done with %s: %s bytes received, %s bytes sent'
             self.info(done_msg % (from_addr, received, sent))
-        except Exception, error:
+        except Exception:
+            error = sys.exc_info()[1]
             logging.error(error, exc_info=1)
 
         self.server.done(self)
