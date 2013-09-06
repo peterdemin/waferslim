@@ -7,15 +7,22 @@ The latest source code is available at http://code.launchpad.net/waferslim.
 
 Copyright 2009-2010 by the author(s). All rights reserved
 '''
-import __builtin__, logging, re, sys, threading
-from instructions import Instruction, \
-                         Make, Call, CallAndAssign, Import
+import logging
+import re
+import sys
+import threading
+from instructions import (Instruction,
+                          Make,
+                          Call,
+                          CallAndAssign,
+                          Import)
 from converters import to_string
 
 _OK = 'OK'
 _EXCEPTION = '__EXCEPTION__:'
 _STOP_TEST = '%sABORT_SLIM_TEST:' % _EXCEPTION
 _NONE_STRING = '/__VOID__/'
+
 
 class Results(object):
     ''' Collecting parameter for results of Instruction execute() methods '''
@@ -31,7 +38,7 @@ class Results(object):
         ''' An instruction has completed, perhaps with a result '''
         if result == Results.NO_RESULT_EXPECTED:
             str_result = _OK
-        elif result == None:
+        elif result is None:
             str_result = _NONE_STRING
         else:
             str_result = self._convert_to_string(result)
@@ -50,12 +57,13 @@ class Results(object):
         collected.extend(self._collected)
         return collected
 
-_INSTRUCTION_TYPES = {'make':Make,
-                      'import':Import,
-                      'call':Call,
-                      'callAndAssign':CallAndAssign }
+_INSTRUCTION_TYPES = {'make': Make,
+                      'import': Import,
+                      'call': Call,
+                      'callAndAssign': CallAndAssign}
 _ID_POSITION = 0
 _TYPE_POSITION = 1
+
 
 def instruction_for(params):
     ''' Factory method for Instruction types '''
@@ -66,12 +74,14 @@ def instruction_for(params):
     except KeyError:
         return Instruction(instruction_id, [instruction_type])
 
+
 def _debug(logger, msg, substitutions):
     ''' Log to logger a msg with potentially some substitutions '''
     try:
         logger.debug(msg % substitutions)
     except:
         logger.warn('Error logging %s:' % msg, exc_info=1)
+
 
 class Instructions(object):
     ''' Container for executable sequence of Instruction-s '''
@@ -99,6 +109,7 @@ class Instructions(object):
                 if stop_test:
                     break
 
+
 class ParamsConverter(object):
     ''' Converter from (possibly nested) list of strings (possibly symbols)
     into (possibly nested) tuple of string arguments for invocation'''
@@ -118,7 +129,11 @@ class ParamsConverter(object):
         ''' Lookup (recursively if required) a possible symbol '''
         if isinstance(possible_symbol, list):
             return self.to_args(possible_symbol, 0)
-        return ParamsConverter._SYMBOL_PATTERN.sub(self._match, possible_symbol, re.S)
+        return ParamsConverter._SYMBOL_PATTERN.sub(
+            self._match,
+            possible_symbol,
+            re.S
+        )
 
     def _match(self, match):
         ''' Actually perform the substitution identified by the match '''
@@ -126,16 +141,19 @@ class ParamsConverter(object):
             return self._execution_context.get_symbol(match.groups()[0])
         return ''
 
+
 def pythonic(method_name):
     ''' Returns a method_name converted from camelCase to pythonic_case'''
     return method_name[0].lower() + \
         ''.join([_underscored_lowercase(char) for char in method_name[1:]])
+
 
 def _underscored_lowercase(char):
     ''' Returns _<lowercase char> if char is uppercase; char otherwise'''
     if char.isupper():
         return '_%s' % char.lower()
     return char
+
 
 class ExecutionContext(object):
     ''' Contextual execution environment to allow simultaneous code executions
@@ -244,8 +262,8 @@ class ExecutionContext(object):
         except KeyError:
             pass
         _debug(self._logger, 'Importing %s%s',
-                           (self._isolate_imports and 'isolated ' or '',
-                            args[0]))
+               (self._isolate_imports and 'isolated ' or '',
+                args[0]))
         mod = ExecutionContext._REAL_IMPORT(*args, **kwds)
         self._imported[mod.__name__] = mod
         self._modules[mod.__name__] = mod
@@ -257,13 +275,13 @@ class ExecutionContext(object):
         fitnesse standard camelCase method will be returned it it exists. '''
         try:
             return getattr(instance,
-                           convert_name \
-                           and pythonic(method_name) \
+                           convert_name
+                           and pythonic(method_name)
                            or method_name)
         except AttributeError:
-            return convert_name \
-                    and self.target_for(instance, method_name, False) \
-                    or None
+            return (convert_name
+                    and self.target_for(instance, method_name, False)
+                    or None)
 
     def get_library_method(self, name):
         ''' Get a method from the library '''
@@ -278,10 +296,11 @@ class ExecutionContext(object):
         ''' log a warning if libraries have method names "execute" or "reset"
         since those methods are called for each row in a decision table '''
         for name in ['execute', 'reset', 'table']:
-            if hasattr(library, name) \
-            and hasattr(getattr(library, name), '__call__'):
-                msg = '%s() in library %r may pollute DecisionTable results'
-                self._logger.warning(msg % (name, library))
+            if hasattr(library, name):
+                if hasattr(getattr(library, name), '__call__'):
+                    msg = ('%s() in library %r may pollute ' +
+                           'DecisionTable results')
+                    self._logger.warning(msg % (name, library))
 
     def _store_library_instance(self, value):
         ''' Add methods in a class instance to the library '''

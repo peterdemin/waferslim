@@ -31,12 +31,20 @@ The latest source code is available at http://code.launchpad.net/waferslim.
 
 Copyright 2009-2010 by the author(s). All rights reserved
 '''
-import codecs, logging.config, os, SocketServer, sys
+import codecs
+import logging.config
+import os
+import sys
+try:
+    import SocketServer
+except ImportError:
+    import socketserver as SocketServer
 from optparse import OptionParser
 import protocol
 
 _LOGGER_NAME = 'WaferSlimServer'
 _ALL_LOGGER_NAMES = (_LOGGER_NAME, 'Instructions', 'Execution')
+
 
 class SlimRequestHandler(SocketServer.BaseRequestHandler,
                          protocol.RequestResponder):
@@ -54,7 +62,9 @@ class SlimRequestHandler(SocketServer.BaseRequestHandler,
         self.info('Handling request from %s' % from_addr)
 
         try:
-            received, sent = self.respond_to_request(isolate_imports=SlimRequestHandler.ISOLATE_IMPORTS)
+            received, sent = self.respond_to_request(
+                isolate_imports=SlimRequestHandler.ISOLATE_IMPORTS
+            )
             done_msg = 'Done with %s: %s bytes received, %s bytes sent'
             self.info(done_msg % (from_addr, received, sent))
         except Exception:
@@ -71,6 +81,7 @@ class SlimRequestHandler(SocketServer.BaseRequestHandler,
         ''' log a debug msg - present in this class to allow use from mixin'''
         logging.getLogger(_LOGGER_NAME).debug(msg)
 
+
 class WaferSlimServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     ''' Standard python library threaded TCP socket server __init__-ed
     to delegate request handling to SlimRequestHandler '''
@@ -83,7 +94,7 @@ class WaferSlimServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
             for name in _ALL_LOGGER_NAMES:
                 logging.getLogger(name).setLevel(logging.DEBUG)
 
-        if not hasattr(self, 'shutdown'): # only introduced in 2.6
+        if not hasattr(self, 'shutdown'):  # only introduced in 2.6
             self._up = [True]
             self.shutdown = lambda: self._up and self._up.pop() or self._up
             self.serve_forever = self._serve_until_shutdown
@@ -115,6 +126,7 @@ class WaferSlimServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
             while self._up:
                 pass
 
+
 def _get_options():
     ''' Convenience method to parse command line args'''
     parser = OptionParser()
@@ -141,6 +153,7 @@ def _get_options():
                       help='add entries from SYSPATH to sys.path')
     return parser.parse_args()
 
+
 def _setup_logging(options):
     ''' Configure standard logging package '''
     if os.path.exists(options.logconf):
@@ -150,15 +163,18 @@ def _setup_logging(options):
         if options.logconf:
             logging.warn('Invalid logging config file: %s' % options.logconf)
 
+
 def _setup_syspath(options):
     ''' Configure syspath '''
     for element in options.syspath.split(os.pathsep):
         sys.path.append(element)
 
+
 def _setup_encoding(options):
     ''' Configure byte (de-)encoding to use '''
     if codecs.lookup(options.encoding):
         protocol.BYTE_ENCODING = options.encoding
+
 
 def _setup_port(options, args):
     ''' If port is not explicitly specified and there are leftover args, the
@@ -169,6 +185,7 @@ def _setup_port(options, args):
             if arg.isdigit():
                 options.port = arg
                 break
+
 
 def start_server():
     ''' Convenience method to start the server (used by __main__)'''
