@@ -142,7 +142,7 @@ class ExecutionContext(object):
     to take place in isolation from each other - see keepalive startup arg.'''
 
     _SEMAPHORE = threading.Semaphore()
-    _REAL_IMPORT = __builtin__.__import__
+    _REAL_IMPORT = __import__
     _SYSPATH = sys.path
 
     def __init__(self, params_converter=ParamsConverter,
@@ -199,10 +199,11 @@ class ExecutionContext(object):
         trying to monkey-patch simultaneously; perform import / lookup of
         the module; then reset the global environment including del() of
         imported modules from sys.modules '''
+        global __import__
         ExecutionContext._SEMAPHORE.acquire()
         try:
             if self._isolate_imports:
-                __builtin__.__import__ = self._import
+                __import__ = self._import
             sys.path = self._path
             sys.path.extend(ExecutionContext._SYSPATH)
 
@@ -210,7 +211,7 @@ class ExecutionContext(object):
         finally:
             sys.path = ExecutionContext._SYSPATH
             if self._isolate_imports:
-                __builtin__.__import__ = ExecutionContext._REAL_IMPORT
+                __import__ = ExecutionContext._REAL_IMPORT
                 self.cleanup_imports()
             ExecutionContext._SEMAPHORE.release()
 
