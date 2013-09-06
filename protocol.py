@@ -11,6 +11,7 @@ Copyright 2009-2010 by the author(s). All rights reserved
 from slim_exceptions import WaferSlimException
 from execution import Results, ExecutionContext, Instructions
 import re
+import sys
 
 BYTE_ENCODING = 'utf-8' #can be altered by server startup options
 BUFFER_SIZE = 4098

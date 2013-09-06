@@ -6,6 +6,8 @@ The latest source code is available at http://code.launchpad.net/waferslim.
 Copyright 2009-2010 by the author(s). All rights reserved
 '''
 
+import sys
+
 _BAD_INSTRUCTION = 'INVALID_STATEMENT'
 _NO_CLASS = 'NO_CLASS'
 _NO_CONSTRUCTION = 'COULD_NOT_INVOKE_CONSTRUCTOR'
