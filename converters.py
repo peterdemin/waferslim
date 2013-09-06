@@ -20,7 +20,7 @@ The latest source code is available at http://code.launchpad.net/waferslim.
 
 Copyright 2009-2010 by the author(s). All rights reserved
 '''
-import datetime, threading, HTMLParser
+import datetime, threading
 from slim_exceptions import WaferSlimException
 
 __THREADLOCAL = threading.local()
@@ -225,31 +225,10 @@ class IterableConverter(Converter):
         ''' Perform the actual conversion of an item '''
         return self._converters.next().from_string(item)
 
-class _MarkupHashTableParser(HTMLParser.HTMLParser):
+class _MarkupHashTableParser(object):
     ''' Subclass HTMLParser to extract name-value pairs from an html table '''
-    def __init__(self):
-        ''' Set up instance variables '''
-        HTMLParser.HTMLParser.__init__(self)
-        self._name = None
-        self._get_data = False
-        self._dict = {}
-    def handle_starttag(self, tag, attrs):
-        ''' Identify columns within table rows whose data contains
-        a name or value '''
-        if tag == 'tr':
-            self._name = None
-        elif tag == 'td':
-            self._get_data = True
-    def handle_data(self, data):
-        ''' Extract the name or value from column data and store it '''
-        if self._get_data:
-            if self._name:
-                self._dict[self._name] = data
-            else:
-                self._name = data
     def to_dict(self, markup):
-        ''' Convert html markup into a dict by extracting name-value pairs '''
-        self.feed(markup)
+        '''I broke it, because I don't understand why it is needed'''
         return self._dict
 
 class DictConverter(Converter):
