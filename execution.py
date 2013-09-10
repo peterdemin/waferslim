@@ -160,7 +160,6 @@ class ExecutionContext(object):
     to take place in isolation from each other - see keepalive startup arg.'''
 
     _SEMAPHORE = threading.Semaphore()
-    _REAL_IMPORT = __import__
     _SYSPATH = sys.path
 
     def __init__(self, params_converter=ParamsConverter,
@@ -253,7 +252,7 @@ class ExecutionContext(object):
         except KeyError:
             pass
         _debug(self._logger, 'Importing %s', (args[0],))
-        mod = ExecutionContext._REAL_IMPORT(*args, **kwds)
+        mod = __import__(*args, **kwds)
         self._imported[mod.__name__] = mod
         self._modules[mod.__name__] = mod
         return mod
