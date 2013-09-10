@@ -15,9 +15,6 @@ Run this module to start the WaferSlimServer listening on a host / port:
                                  (default: utf-8)
      -v, --verbose               log verbose messages at runtime
                                  (default: False)
-     -k, --keepalive             keep the server alive to service multiple
-                                 requests (requires fork of fitnesse java code)
-                                 (default: False)
      -l FILE, --logconf=...      use logging configuration from FILE
      -s PATH, --syspath=...      add entries from PATH to sys.path
 
@@ -62,9 +59,7 @@ class SlimRequestHandler(SocketServer.BaseRequestHandler,
         self.info('Handling request from %s' % from_addr)
 
         try:
-            received, sent = self.respond_to_request(
-                isolate_imports=SlimRequestHandler.ISOLATE_IMPORTS
-            )
+            received, sent = self.respond_to_request()
             done_msg = 'Done with %s: %s bytes received, %s bytes sent'
             self.info(done_msg % (from_addr, received, sent))
         except Exception:
@@ -88,8 +83,6 @@ class WaferSlimServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
     def __init__(self, options):
         ''' Initialise socket server on host and port, with logging '''
-        self._keepalive = options.keepalive
-        SlimRequestHandler.ISOLATE_IMPORTS = options.keepalive
         if options.verbose:
             for name in _ALL_LOGGER_NAMES:
                 logging.getLogger(name).setLevel(logging.DEBUG)
@@ -110,21 +103,15 @@ class WaferSlimServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
         logging.getLogger(_LOGGER_NAME).info(start_msg)
 
     def done(self, request_handler):
-        ''' A request_handler has completed: if keepalive=False then gracefully
-        shut down the server'''
-        if not self._keepalive:
-            logging.getLogger(_LOGGER_NAME).info('Shutting down')
-            self.shutdown()
+        ''' A request_handler has completed - shut down the server'''
+        logging.getLogger(_LOGGER_NAME).info('Shutting down')
+        self.shutdown()
 
     def _serve_until_shutdown(self):
         ''' Handle requests until shutdown is called '''
-        if self._keepalive:
-            while self._up:
-                self.handle_request()
-        else:
-            self.handle_request()
-            while self._up:
-                pass
+        self.handle_request()
+        while self._up:
+            pass
 
 
 def _get_options():
@@ -142,9 +129,6 @@ def _get_options():
     parser.add_option('-v', '--verbose', dest='verbose',
                       default=False, action='store_true',
                       help='log verbose messages at runtime (default: False)')
-    parser.add_option('-k', '--keepalive', dest='keepalive',
-                      default=False, action='store_true',
-                      help='keep alive for multiple requests (default: False)')
     parser.add_option('-l', '--logconf', dest='logconf',
                       metavar='CONFIGFILE', default='',
                       help='use logging configuration from CONFIGFILE')

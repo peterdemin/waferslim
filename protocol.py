@@ -128,7 +128,6 @@ class RequestResponder(object):
 
     def respond_to_request(self, instructions=Instructions,
                                  execution_context=ExecutionContext,
-                                 isolate_imports=False,
                                  results=Results):
         ''' Entry point for mixin: respond to a Slim protocol request.
         Basic format of every interaction is:
@@ -137,7 +136,7 @@ class RequestResponder(object):
         - receiving a 'bye' message will terminate the loop
         '''
         ack_bytes = self._send_ack(self.request)
-        context = execution_context(isolate_imports=isolate_imports)
+        context = execution_context()
         received, sent = self._message_loop(instructions,
                                             context,
                                             results)

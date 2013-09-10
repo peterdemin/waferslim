@@ -299,8 +299,7 @@ def __init_converters():
     ''' Ensure standard converters exist for bool, int, float, datetime, ...
     All registered converters, keyed on type, are held as thread-local to
     ensure that ExecutionContext-s (which are created per thread by the
-    server) really are isolated from each other when the server is run
-    in keepalive (multi-user) mode'''
+    server) really are isolated from each other'''
     if hasattr(__THREADLOCAL, 'converters'):
         return
 

@@ -164,7 +164,6 @@ class ExecutionContext(object):
     _SYSPATH = sys.path
 
     def __init__(self, params_converter=ParamsConverter,
-                 isolate_imports=False,
                  logger=logging.getLogger('Execution')):
         ''' Set up the isolated context '''
         # Fitnesse-specific...
@@ -175,7 +174,6 @@ class ExecutionContext(object):
         self._type_prefixes = []
         self._params_converter = params_converter(self)
         # Implementation-specific...
-        self._isolate_imports = isolate_imports
         self._logger = logger
         self._imported = {}
         self._modules = {}
@@ -217,20 +215,13 @@ class ExecutionContext(object):
         trying to monkey-patch simultaneously; perform import / lookup of
         the module; then reset the global environment including del() of
         imported modules from sys.modules '''
-        global __import__
         ExecutionContext._SEMAPHORE.acquire()
         try:
-            if self._isolate_imports:
-                __import__ = self._import
             sys.path = self._path
             sys.path.extend(ExecutionContext._SYSPATH)
-
             return self._import_module(fully_qualified_name)
         finally:
             sys.path = ExecutionContext._SYSPATH
-            if self._isolate_imports:
-                __import__ = ExecutionContext._REAL_IMPORT
-                self.cleanup_imports()
             ExecutionContext._SEMAPHORE.release()
 
     def cleanup_imports(self):
@@ -261,9 +252,7 @@ class ExecutionContext(object):
             return self._modules[args[0]]
         except KeyError:
             pass
-        _debug(self._logger, 'Importing %s%s',
-               (self._isolate_imports and 'isolated ' or '',
-                args[0]))
+        _debug(self._logger, 'Importing %s', (args[0],))
         mod = ExecutionContext._REAL_IMPORT(*args, **kwds)
         self._imported[mod.__name__] = mod
         self._modules[mod.__name__] = mod
