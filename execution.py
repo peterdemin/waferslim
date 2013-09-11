@@ -225,7 +225,7 @@ def load_classes(package_path):
                 classes.update(get_classes(module))
         return classes
     else:
-        raise OSError("Path does not exists: %r", package_path)
+        return get_classes(__import__(package_path))
 
 
 def load_source(source_path):
