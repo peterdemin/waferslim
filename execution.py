@@ -7,9 +7,10 @@ The latest source code is available at http://code.launchpad.net/waferslim.
 
 Copyright 2009-2010 by the author(s). All rights reserved
 '''
-import logging
+import os
 import re
 import sys
+import logging
 from instructions import (Instruction,
                           Make,
                           Call,
@@ -243,13 +244,13 @@ class ExecutionContext(object):
 
 
 def load_classes(package_path):
-    import os
-    if os.path.exists(package_path):
-        if os.path.isfile(package_path):
-            for name, data in get_classes(load_source(package_path)):
+    on_path = find_in_sys_path(package_path)
+    if on_path is not None:
+        if os.path.isfile(on_path):
+            for name, data in get_classes(load_source(on_path)):
                 yield (name, data)
         else:
-            for module in load_package(package_path):
+            for module in load_package(on_path):
                 for name, data in get_classes(module):
                     yield (name, data)
     else:
@@ -257,15 +258,21 @@ def load_classes(package_path):
             yield (name, data)
 
 
+def find_in_sys_path(path):
+    for base in sys.path:
+        rel_path = os.path.join(base, path)
+        if os.path.exists(rel_path):
+            return rel_path
+    return None
+
+
 def load_source(source_path):
-    import os
     import imp
     name = os.path.splitext(os.path.basename(source_path))[0]
     return imp.load_source(name, source_path)
 
 
 def load_package(package_path):
-    import os
     import pkgutil
     for loader, name, is_pkg in pkgutil.iter_modules([package_path]):
         if is_pkg:
