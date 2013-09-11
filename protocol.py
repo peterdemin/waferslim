@@ -12,6 +12,7 @@ from .slim_exceptions import WaferSlimException
 from .execution import Results, ExecutionContext, Instructions
 import re
 import sys
+import six
 
 BYTE_ENCODING = 'utf-8'  # can be altered by server startup options
 BUFFER_SIZE = 4098
@@ -40,14 +41,13 @@ class UnpackingError(WaferSlimException):
         ''' Describe this failure '''
         return 'MALFORMED_INSTRUCTION %s' % self.args[0]
 
+
 def unpack(packed_string):
     ''' Unpack a chunked-up packed_string into a list '''
-    if isinstance(packed_string, unicode) \
-    or isinstance(packed_string, str):
-        chunks = []
-        _unpack_chunk(packed_string, chunks)
-        return chunks
-    raise TypeError('%r is not a string' % packed_string)
+    chunks = []
+    _unpack_chunk(packed_string, chunks)
+    return chunks
+
 
 def _unpack_chunk(packed_chunk, chunks):
     ''' Unpack a packed chunk, recursively if required '''
@@ -200,14 +200,16 @@ class RequestResponder(object):
 
     def _get_message(self, message_length):
         ''' Receive a message of a known length, in parts'''
-        message, remaining = '', message_length
+        parts = []
+        remaining = message_length
         while remaining > 0:
             # Try 1k to work around incorrect message_length with utf-8
             data = self.request.recv(BUFFER_SIZE)
-            self.debug('Recv %s bytes...' % len(data))
-            message += data
-            remaining = message_length - len(message)
-        return message.decode(BYTE_ENCODING)
+            received = len(data)
+            self.debug('Recv %s bytes...' % received)
+            parts.append(data)
+            remaining -= received
+        return six.binary_type().join(parts).decode(BYTE_ENCODING)
 
     def _format_response(self, msg):
         ''' Encode the bytes and add the length in an initial numeric header'''
