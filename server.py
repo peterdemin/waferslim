@@ -58,7 +58,6 @@ class SlimRequestHandler(SocketServer.BaseRequestHandler,
         ''' log some info about the request then pass off to mixin class '''
         from_addr = '%s:%s' % self.client_address
         self.info('Handling request from %s' % from_addr)
-
         try:
             received, sent = self.respond_to_request()
             done_msg = 'Done with %s: %s bytes received, %s bytes sent'
@@ -66,7 +65,6 @@ class SlimRequestHandler(SocketServer.BaseRequestHandler,
         except Exception:
             error = sys.exc_info()[1]
             logging.error(error, exc_info=1)
-
         self.server.done(self)
 
     def info(self, msg):
@@ -95,11 +93,9 @@ class WaferSlimServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
 
         prestart_msg = "Starting server with options: %s" % (options,)
         logging.getLogger(_LOGGER_NAME).info(prestart_msg)
-
         server_address = (options.inethost, int(options.port))
-        SocketServer.TCPServer.__init__(self,
-                                        server_address, SlimRequestHandler)
-
+        SocketServer.TCPServer.__init__(self, server_address,
+                                        SlimRequestHandler)
         start_msg = "Started and listening on %s:%s" % self.server_address
         logging.getLogger(_LOGGER_NAME).info(start_msg)
 
@@ -181,6 +177,7 @@ def start_server():
     _setup_encoding(options)
     _setup_port(options, args)
     WaferSlimServer(options).serve_forever()
+
 
 if __name__ == '__main__':
     start_server()

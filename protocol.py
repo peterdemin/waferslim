@@ -13,7 +13,7 @@ from .execution import Results, ExecutionContext, Instructions
 import re
 import sys
 
-BYTE_ENCODING = 'utf-8' #can be altered by server startup options
+BYTE_ENCODING = 'utf-8'  # can be altered by server startup options
 BUFFER_SIZE = 4098
 _VERSION = 'Slim -- V0.3\n'
 _START_CHUNK = '['
@@ -26,6 +26,7 @@ _NUMERIC_BLOCK_LENGTH = len((_NUMERIC_ENCODING % 0).encode(BYTE_ENCODING)) \
     + _SEPARATOR_LENGTH
 _ITEM_ENCODING = _NUMERIC_ENCODING + '%s%s'
 _DISCONNECT = 'bye'
+
 
 class UnpackingError(WaferSlimException):
     ''' An attempt was made to unpack messages that do not conform
@@ -74,6 +75,7 @@ def _unpack_chunk(packed_chunk, chunks):
         else:
             chunks.append(item)
 
+
 def _check_chunk(packed_chunk):
     ''' Verify format of an packed_chunk '''
     is_chunk(packed_chunk, raise_on_failure=True)
@@ -82,6 +84,7 @@ CHUNK_RE = re.compile('^\[[0-9]{%s,%s}\:[0-9]{%s,%s}\:' % (_NUMERIC_LENGTH,
                                                            _NUMERIC_LENGTH,
                                                            _NUMERIC_LENGTH,
                                                            _NUMERIC_LENGTH))
+
 
 def is_chunk(possible_chunk, raise_on_failure=False):
     ''' Check for indicative start/end of an encoded chunk '''
@@ -98,12 +101,14 @@ def is_chunk(possible_chunk, raise_on_failure=False):
         return False
     raise UnpackingError(msg)
 
+
 def _check_separator(packed_chunk, pos):
     ''' Verify existence of separator at position pos in a packed_chunk '''
     if _SEPARATOR != packed_chunk[pos]:
-        msg = '%r has no %r separator at pos %s' % \
-                (packed_chunk, _SEPARATOR, pos)
+        msg = ('%r has no %r separator at pos %s' %
+               (packed_chunk, _SEPARATOR, pos))
         raise UnpackingError(msg)
+
 
 def pack(item_list):
     ''' Pack each item from a list into the chunked-up format '''
@@ -111,6 +116,7 @@ def pack(item_list):
     packed.insert(0, _NUMERIC_ENCODING % len(item_list))
     return '%s%s%s%s' % (_START_CHUNK, _SEPARATOR.join(packed),
                          _SEPARATOR, _END_CHUNK)
+
 
 def _pack_item(item):
     ''' Pack (recursively if required) a single item in the format:
@@ -121,14 +127,16 @@ def _pack_item(item):
         return _ITEM_ENCODING % (len(item), _SEPARATOR, item)
     raise TypeError('%r is not a string' % item)
 
+
 class RequestResponder(object):
     ''' Mixin class for responding to Slim requests.
     Logic mostly reverse engineered from Java test classes especially
     fitnesse.responders.run.slimResponder.SlimTestSystemTest '''
 
-    def respond_to_request(self, instructions=Instructions,
-                                 execution_context=ExecutionContext,
-                                 results=Results):
+    def respond_to_request(self,
+                           instructions=Instructions,
+                           execution_context=ExecutionContext,
+                           results=Results):
         ''' Entry point for mixin: respond to a Slim protocol request.
         Basic format of every interaction is:
         - every request requires an initial ACK with the Slim Version
@@ -140,7 +148,6 @@ class RequestResponder(object):
         received, sent = self._message_loop(instructions,
                                             context,
                                             results)
-
         return received, sent + ack_bytes
 
     def _send_ack(self, request):
