@@ -141,91 +141,120 @@ class ParamsConverter(object):
         return ''
 
 
-def pythonic(method_name):
-    ''' Returns a method_name converted from camelCase to pythonic_case'''
-    return method_name[0].lower() + \
-        ''.join([_underscored_lowercase(char) for char in method_name[1:]])
+def to_pythonic(method_name):
+    '''Converts CamelCase to pythonic_case'''
+    return (method_name[0].lower() +
+            ''.join(map(underscored_lowercase, method_name[1:])))
 
 
-def _underscored_lowercase(char):
-    ''' Returns _<lowercase char> if char is uppercase; char otherwise'''
+def to_lower_camel_case(method_name):
+    '''Converts pythonic_case to camelCase'''
+    camel_case = re.sub(
+        '_(.)',
+        lambda m: m.group(1).upper(),
+        method_name
+    )
+    return camel_case[:1].lower() + camel_case[1:]
+
+
+def to_upper_camel_case(method_name):
+    '''Converts pythonic_case to CamelCase'''
+    camel_case = re.sub(
+        '_(.)',
+        lambda m: m.group(1).upper(),
+        method_name
+    )
+    return camel_case[:1].upper() + camel_case[1:]
+
+
+def underscored_lowercase(char):
     if char.isupper():
-        return '_%s' % char.lower()
-    return char
+        return '_' + char.lower()
+    else:
+        return char
 
 
 class ExecutionContext(object):
     def __init__(self, params_converter=ParamsConverter,
                  logger=logging.getLogger('Execution')):
-        self._instances = {}
-        self._symbols = {}
         self._params_converter = params_converter(self)
         self._logger = logger
+        self.instances = {}
+        self._symbols = {}
         self.classes = {}
+        self.aliases = {}
 
     def get_type(self, fully_qualified_name):
-        return self.classes[fully_qualified_name]
+        return self.classes.get(fully_qualified_name, None)
 
-    def add_import_path(self, path):
-        self.classes = load_classes(path)
+    def import_path(self, path):
+        for name, data in load_classes(path):
+            self.classes[name] = data['class']
+            self.aliases[name] = ExecutionContext.get_aliases(data['methods'])
 
-    def target_for(self, instance, method_name, convert_name=True):
-        ''' Return an instance's named method to use as a call target.
-        If a pythonically_named method exists it will be used, otherwise the
-        fitnesse standard camelCase method will be returned it it exists. '''
-        try:
-            return getattr(instance,
-                           convert_name
-                           and pythonic(method_name)
-                           or method_name)
-        except AttributeError:
-            return (convert_name
-                    and self.target_for(instance, method_name, False)
-                    or None)
+    @staticmethod
+    def get_aliases(methods):
+        aliases = dict((n, n) for n in methods)
+        aliases.update(ExecutionContext.convention_aliases(aliases))
+        return aliases
+
+    @staticmethod
+    def convention_aliases(aliases):
+        camel_caseds = dict([
+            (to_lower_camel_case(name), aliases[name])
+            for name in aliases
+        ])
+        camel_caseds.update([
+            (to_upper_camel_case(name), aliases[name])
+            for name in aliases
+        ])
+        return camel_caseds
+
+    def target_for(self, instance, method_name):
+        class_name = instance.__class__.__name__
+        method_name = self.aliases[class_name][method_name]
+        if hasattr(instance, method_name):
+            return getattr(instance, method_name)
+        else:
+            return None
 
     def store_instance(self, name, value):
         ''' Add a name=value pair to the context instances '''
         _debug(self._logger, 'Storing instance %s=%r', (name, value))
-        self._instances[name] = value
+        self.instances[name] = value
 
     def get_instance(self, name):
-        ''' Get value from a name=value pair in the context instances '''
-        try:
-            return self._instances[name]
-        except KeyError:
-            return None
+        return self.instances.get(name, None)
 
     def store_symbol(self, name, value):
-        ''' Add a name=value pair to the context symbols '''
         _debug(self._logger, 'Storing symbol %s=%r', (name, value))
         self._symbols[name] = to_string(value)
 
     def get_symbol(self, name):
-        ''' Get value from a name=value pair in the context symbols '''
-        try:
+        if name in self._symbols:
             value = self._symbols[name]
             _debug(self._logger, 'Restoring symbol %s=%r', (name, value))
             return value
-        except KeyError:
+        else:
             return '$%s' % name
 
     def to_args(self, params, from_position):
-        ''' Delegate args construction to the ParamsConverter '''
         return self._params_converter.to_args(params, from_position)
 
 
 def load_classes(package_path):
     import os
     if os.path.exists(package_path):
-        classes = {}
         if os.path.isfile(package_path):
-            classes.update(get_classes(load_source(package_path)))
+            for name, data in get_classes(load_source(package_path)):
+                yield (name, data)
         else:
             for module in load_package(package_path):
-                classes.update(get_classes(module))
-        return classes
+                for name, data in get_classes(module):
+                    yield (name, data)
     else:
-        return get_classes(__import__(package_path))
+        for name, data in get_classes(__import__(package_path)):
+            yield (name, data)
 
 
 def load_source(source_path):
@@ -249,4 +278,13 @@ def load_package(package_path):
 
 def get_classes(module):
     import inspect
-    return dict(inspect.getmembers(module, inspect.isclass))
+    import six
+    if six.PY2:
+        isfunction = inspect.ismethod
+    elif six.PY3:
+        isfunction = inspect.isfunction
+    for class_name, Class in inspect.getmembers(module, inspect.isclass):
+        methods = [n
+                   for n, _ in inspect.getmembers(Class, isfunction)
+                   if '__' not in n]
+        yield (class_name, {'class': Class, 'methods': methods})

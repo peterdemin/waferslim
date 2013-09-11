@@ -8,11 +8,13 @@ Copyright 2009-2010 by the author(s). All rights reserved
 
 import sys
 
+
 _BAD_INSTRUCTION = 'INVALID_STATEMENT'
 _NO_CLASS = 'NO_CLASS'
 _NO_CONSTRUCTION = 'COULD_NOT_INVOKE_CONSTRUCTOR'
 _NO_INSTANCE = 'NO_INSTANCE'
 _NO_METHOD = 'NO_METHOD_IN_CLASS'
+
 
 class Instruction(object):
     ''' Base class for instructions '''
@@ -38,18 +40,20 @@ class Instruction(object):
         was unrecognised -- fail with _BAD_INSTRUCTION '''
         results.failed(self, '%s %s' % (_BAD_INSTRUCTION, self._params[0]))
 
+
 class Import(Instruction):
     ''' An "import <path or module context>" instruction '''
 
     def execute(self, execution_context, results):
         ''' Adds an imported path or module context to the execution context'''
         path = self._params[0]
-        execution_context.add_import_path(path)
+        execution_context.import_path(path)
         results.completed(self)
 
     def _ispath(self, possible_path):
         ''' True if this is a path, False otherwise '''
         return possible_path.find('/') != -1 or possible_path.find('\\') != -1
+
 
 class Make(Instruction):
     ''' A "make <instance>, <class>, <args>..." instruction '''
@@ -62,6 +66,7 @@ class Make(Instruction):
             error = sys.exc_info()[1]
             cause = '%s %s %s' % (_NO_CLASS, self._params[1], error.args[0])
             results.failed(self, cause)
+            raise
             return
 
         args = execution_context.to_args(self._params, 2)
@@ -74,6 +79,7 @@ class Make(Instruction):
             cause = '%s %s %s' % (_NO_CONSTRUCTION,
                                   self._params[1], error.args[0])
             results.failed(self, cause)
+
 
 class Call(Instruction):
     ''' A "call <instance>, <function>, <args>..." instruction '''
@@ -92,36 +98,20 @@ class Call(Instruction):
         '''
         instance_name, target_name = params[0], params[1]
         instance = execution_context.get_instance(instance_name)
-        target = None
-
         if instance is not None:
             target = execution_context.target_for(instance, target_name)
-            if not target:
-                sut = execution_context.target_for(instance, 'sut')
-                sut = sut and (hasattr(sut, '__call__') and sut() or sut)
-                target = sut \
-                         and execution_context.target_for(sut, target_name) \
-                         or None
-        if not target:
-            target = execution_context.get_library_method(target_name)
-
-        if target:
-            return self._result(execution_context, target, params)
-        elif instance is None:
+            if target is not None:
+                args = execution_context.to_args(params, 2)
+                result = target(*args)
+                return (result, True)
+            else:
+                cause = '%s %s %s' % (_NO_METHOD, target_name,
+                                      type(instance).__name__)
+                results.failed(self, cause)
+        else:  # instance is None
             results.failed(self, '%s %s' % (_NO_INSTANCE, instance_name))
-            return (None, False)
-        else:
-            cause = '%s %s %s' % (_NO_METHOD, target_name,
-                                  type(instance).__name__)
-            results.failed(self, cause)
-            return (None, False)
+        return (None, False)
 
-    def _result(self, execution_context, target, params):
-        ''' Perform params $variable substitution in the execution_context and
-        then call target() '''
-        args = execution_context.to_args(params, 2)
-        result = target(*args)
-        return (result, True)
 
 class CallAndAssign(Call):
     ''' A "callAndAssign <symbol>, <instance>, <function>, <args>..."
