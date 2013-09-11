@@ -1,14 +1,12 @@
 import os
-import sys
 import collections
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from waferslim import converters
-from waferslim import execution
-from waferslim import fixtures
-from waferslim import instructions
-from waferslim import protocol
-from waferslim import server
-from waferslim import slim_exceptions
+from . import converters
+from . import execution
+from . import fixtures
+from . import instructions
+from . import protocol
+from . import server
+from . import slim_exceptions
 
 
 mute_unused_warnings = (converters, execution, fixtures, instructions,
@@ -23,13 +21,10 @@ def execute(instruction):
     return execution_results.collection()
 
 
-class Options(object):
-    inethost = '127.0.0.1'
-    port = '8085'
-    verbose = False
-
-server._setup_syspath(collections.namedtuple('Options', 'syspath')('fixtures'))
-server.WaferSlimServer(Options())
+Options = collections.namedtuple('Options', 'syspath inethost port verbose')
+options = Options('fixtures', '127.0.0.1', '8085', False)
+server._setup_syspath(options)
+server.WaferSlimServer(options)
 
 fixtures_path = os.path.join('echo_fixture.py')
 
