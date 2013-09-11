@@ -11,12 +11,12 @@ import os
 import re
 import sys
 import logging
-from instructions import (Instruction,
-                          Make,
-                          Call,
-                          CallAndAssign,
-                          Import)
-from converters import to_string
+from .instructions import (Instruction,
+                           Make,
+                           Call,
+                           CallAndAssign,
+                           Import)
+from .converters import to_string
 
 _OK = 'OK'
 _EXCEPTION = '__EXCEPTION__:'

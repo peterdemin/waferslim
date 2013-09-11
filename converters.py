@@ -21,7 +21,7 @@ The latest source code is available at http://code.launchpad.net/waferslim.
 Copyright 2009-2010 by the author(s). All rights reserved
 '''
 import datetime, threading
-from slim_exceptions import WaferSlimException
+from .slim_exceptions import WaferSlimException
 
 __THREADLOCAL = threading.local()
 

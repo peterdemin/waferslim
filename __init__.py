@@ -9,4 +9,4 @@ Copyright 2009-2010 by the author(s). All rights reserved
 
 __version__ = "1.0.2"
 
-from slim_exceptions import StopTestException
+from .slim_exceptions import StopTestException

@@ -8,8 +8,8 @@ The latest source code is available at http://code.launchpad.net/waferslim.
 Copyright 2009-2010 by the author(s). All rights reserved
 '''
 
-from slim_exceptions import WaferSlimException
-from execution import Results, ExecutionContext, Instructions
+from .slim_exceptions import WaferSlimException
+from .execution import Results, ExecutionContext, Instructions
 import re
 import sys
 

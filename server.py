@@ -37,7 +37,8 @@ try:
 except ImportError:
     import socketserver as SocketServer
 from optparse import OptionParser
-import protocol
+from . import protocol
+
 
 _LOGGER_NAME = 'WaferSlimServer'
 _ALL_LOGGER_NAMES = (_LOGGER_NAME, 'Instructions', 'Execution')

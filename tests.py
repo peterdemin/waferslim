@@ -1,5 +1,5 @@
 import unittest
-import execution
+from . import execution
 
 
 class ConventionsTestCase(unittest.TestCase):
