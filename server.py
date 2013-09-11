@@ -50,10 +50,6 @@ class SlimRequestHandler(SocketServer.BaseRequestHandler,
     the server -- in turn most of the work is passed off to the mixin class
     RequestResponder '''
 
-    def __new__(cls, *args, **kwds):
-        ''' Support for IronPython 2.6 '''
-        return object.__new__(SlimRequestHandler, *args, **kwds)
-
     def handle(self):
         ''' log some info about the request then pass off to mixin class '''
         from_addr = '%s:%s' % self.client_address
