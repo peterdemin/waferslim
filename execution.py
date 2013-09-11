@@ -10,7 +10,6 @@ Copyright 2009-2010 by the author(s). All rights reserved
 import logging
 import re
 import sys
-import threading
 from instructions import (Instruction,
                           Make,
                           Call,
@@ -156,106 +155,19 @@ def _underscored_lowercase(char):
 
 
 class ExecutionContext(object):
-    ''' Contextual execution environment to allow simultaneous code executions
-    to take place in isolation from each other - see keepalive startup arg.'''
-
-    _SEMAPHORE = threading.Semaphore()
-    _SYSPATH = sys.path
-
     def __init__(self, params_converter=ParamsConverter,
                  logger=logging.getLogger('Execution')):
-        ''' Set up the isolated context '''
-        # Fitnesse-specific...
         self._instances = {}
-        self._libraries = []
         self._symbols = {}
-        self._path = []
-        self._type_prefixes = []
         self._params_converter = params_converter(self)
-        # Implementation-specific...
         self._logger = logger
-        self._imported = {}
-        self._modules = {}
-        self._modules.update(sys.modules)
+        self.classes = {}
 
     def get_type(self, fully_qualified_name):
-        ''' Get a type instance from the context '''
-        dot_pos = fully_qualified_name.rfind('.')
-        if dot_pos == -1:
-            for prefix in self._type_prefixes:
-                try:
-                    prefixed_name = '%s.%s' % (prefix, fully_qualified_name)
-                    return self.get_type(prefixed_name)
-                except (TypeError, ImportError):
-                    pass
-            if fully_qualified_name[0].islower():
-                return self.get_type(fully_qualified_name.title())
-            msg = 'Type %s is not in a module: perhaps you want to Import it?'
-            raise TypeError(msg % fully_qualified_name)
+        return self.classes[fully_qualified_name]
 
-        module_part = fully_qualified_name[:dot_pos]
-        type_part = fully_qualified_name[dot_pos + 1:]
-        module = self.get_module(module_part)
-        try:
-            _type = getattr(module, type_part)
-            return _type
-        except AttributeError:
-            msg = '%s could not be found in %s' % (type_part, module_part)
-            raise TypeError(msg)
-
-    def add_type_prefix(self, prefix):
-        ''' Add a prefix that may be used to find classes without using long
-        fully-dot-qualified names '''
-        self._type_prefixes.insert(0, prefix)
-
-    def get_module(self, fully_qualified_name):
-        ''' Monkey-patch builtin __import__ and sys.path to ensure isolation
-        of the context and do so in a way that prevents multiple contexts
-        trying to monkey-patch simultaneously; perform import / lookup of
-        the module; then reset the global environment including del() of
-        imported modules from sys.modules '''
-        ExecutionContext._SEMAPHORE.acquire()
-        try:
-            sys.path = self._path
-            sys.path.extend(ExecutionContext._SYSPATH)
-            return self._import_module(fully_qualified_name)
-        finally:
-            sys.path = ExecutionContext._SYSPATH
-            ExecutionContext._SEMAPHORE.release()
-
-    def cleanup_imports(self):
-        ''' Clean-up imports '''
-        for mod in self._imported.keys():
-            try:
-                del(sys.modules[mod])
-            except KeyError:
-                pass
-        self._imported = {}
-
-    def _import_module(self, fully_qualified_name):
-        ''' Actually perform nested module import / lookup of a module '''
-        dot_pos = fully_qualified_name.rfind('.')
-        if dot_pos == -1:
-            return self._import(fully_qualified_name)
-        else:
-            parent_module = fully_qualified_name[:dot_pos]
-            unqualified_name = fully_qualified_name[dot_pos + 1:]
-            self._import_module(parent_module)
-            return self._import(fully_qualified_name,
-                                fromlist=[str(unqualified_name)])
-
-    def _import(self, *args, **kwds):
-        ''' If module has already been imported, return it. Otherwise delegate
-        to builtin __import__ and keep note of the imported module.'''
-        try:
-            return self._modules[args[0]]
-        except KeyError:
-            pass
-        _debug(self._logger, 'Importing %s', (args[0],))
-        mod = __import__(*args, **kwds)
-        self._imported[mod.__name__] = mod
-        self._modules[mod.__name__] = mod
-        return mod
+    def add_import_path(self, path):
+        self.classes = load_classes(path)
 
     def target_for(self, instance, method_name, convert_name=True):
         ''' Return an instance's named method to use as a call target.
@@ -271,38 +183,10 @@ class ExecutionContext(object):
                     and self.target_for(instance, method_name, False)
                     or None)
 
-    def get_library_method(self, name):
-        ''' Get a method from the library '''
-        _debug(self._logger, 'Getting library method %s', name)
-        for instance in self._libraries:
-            target = self.target_for(instance, name, True)
-            if target:
-                return target
-        return None
-
-    def warn_polluting_library_methods(self, library):
-        ''' log a warning if libraries have method names "execute" or "reset"
-        since those methods are called for each row in a decision table '''
-        for name in ['execute', 'reset', 'table']:
-            if hasattr(library, name):
-                if hasattr(getattr(library, name), '__call__'):
-                    msg = ('%s() in library %r may pollute ' +
-                           'DecisionTable results')
-                    self._logger.warning(msg % (name, library))
-
-    def _store_library_instance(self, value):
-        ''' Add methods in a class instance to the library '''
-        _debug(self._logger, 'Storing library instance %r', value)
-        self.warn_polluting_library_methods(value)
-        self._libraries.insert(0, value)
-
     def store_instance(self, name, value):
         ''' Add a name=value pair to the context instances '''
-        if name.lower().startswith('library'):
-            self._store_library_instance(value)
-        else:
-            _debug(self._logger, 'Storing instance %s=%r', (name, value))
-            self._instances[name] = value
+        _debug(self._logger, 'Storing instance %s=%r', (name, value))
+        self._instances[name] = value
 
     def get_instance(self, name):
         ''' Get value from a name=value pair in the context instances '''
@@ -310,10 +194,6 @@ class ExecutionContext(object):
             return self._instances[name]
         except KeyError:
             return None
-
-    def add_import_path(self, path):
-        ''' An an import location to the context path '''
-        self._path.insert(0, path)
 
     def store_symbol(self, name, value):
         ''' Add a name=value pair to the context symbols '''
@@ -332,3 +212,41 @@ class ExecutionContext(object):
     def to_args(self, params, from_position):
         ''' Delegate args construction to the ParamsConverter '''
         return self._params_converter.to_args(params, from_position)
+
+
+def load_classes(package_path):
+    import os
+    if os.path.exists(package_path):
+        classes = {}
+        if os.path.isfile(package_path):
+            classes.update(get_classes(load_source(package_path)))
+        else:
+            for module in load_package(package_path):
+                classes.update(get_classes(module))
+        return classes
+    else:
+        raise OSError("Path does not exists: %r", package_path)
+
+
+def load_source(source_path):
+    import os
+    import imp
+    name = os.path.splitext(os.path.basename(source_path))[0]
+    return imp.load_source(name, source_path)
+
+
+def load_package(package_path):
+    import os
+    import pkgutil
+    for loader, name, is_pkg in pkgutil.iter_modules([package_path]):
+        if is_pkg:
+            subpackage_path = os.path.join(package_path, name)
+            for module in load_package(subpackage_path):
+                yield module
+        else:
+            yield loader.find_module(name).load_module(name)
+
+
+def get_classes(module):
+    import inspect
+    return dict(inspect.getmembers(module, inspect.isclass))

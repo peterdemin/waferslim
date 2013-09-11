@@ -43,11 +43,8 @@ class Import(Instruction):
 
     def execute(self, execution_context, results):
         ''' Adds an imported path or module context to the execution context'''
-        path_or_module = self._params[0]
-        if self._ispath(path_or_module):
-            execution_context.add_import_path(path_or_module)
-        else:
-            execution_context.add_type_prefix(path_or_module)
+        path = self._params[0]
+        execution_context.add_import_path(path)
         results.completed(self)
 
     def _ispath(self, possible_path):
@@ -94,7 +91,8 @@ class Call(Instruction):
         -  try to invoke the named method via libraries
         '''
         instance_name, target_name = params[0], params[1]
-        instance, target = execution_context.get_instance(instance_name), None
+        instance = execution_context.get_instance(instance_name)
+        target = None
 
         if instance is not None:
             target = execution_context.target_for(instance, target_name)
