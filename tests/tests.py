@@ -1,5 +1,5 @@
 import unittest
-from . import execution
+from waferslim import execution
 
 
 class ConventionsTestCase(unittest.TestCase):
