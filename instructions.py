@@ -6,9 +6,6 @@ The latest source code is available at http://code.launchpad.net/waferslim.
 Copyright 2009-2010 by the author(s). All rights reserved
 '''
 
-import sys
-
-
 _BAD_INSTRUCTION = 'INVALID_STATEMENT'
 _NO_CLASS = 'NO_CLASS'
 _NO_CONSTRUCTION = 'COULD_NOT_INVOKE_CONSTRUCTOR'
@@ -62,8 +59,7 @@ class Make(Instruction):
         ''' Create a class instance and add it to the execution context '''
         try:
             target = execution_context.get_type(self._params[1])
-        except (TypeError, ImportError):
-            error = sys.exc_info()[1]
+        except (TypeError, ImportError) as error:
             cause = '%s %s %s' % (_NO_CLASS, self._params[1], error.args[0])
             results.failed(self, cause)
             raise
@@ -74,8 +70,7 @@ class Make(Instruction):
             instance = target(*args)
             execution_context.store_instance(self._params[0], instance)
             results.completed(self)
-        except TypeError:
-            error = sys.exc_info()[1]
+        except TypeError as error:
             cause = '%s %s %s' % (_NO_CONSTRUCTION,
                                   self._params[1], error.args[0])
             results.failed(self, cause)

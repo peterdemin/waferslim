@@ -11,7 +11,6 @@ Copyright 2009-2010 by the author(s). All rights reserved
 from .slim_exceptions import WaferSlimException
 from .execution import Results, ExecutionContext, Instructions
 import re
-import sys
 import six
 
 BYTE_ENCODING = 'utf-8'  # can be altered by server startup options
@@ -179,8 +178,7 @@ class RequestResponder(object):
             try:
                 instruction_list = instructions(unpack(message))
                 instruction_list.execute(execution_context, result)
-            except UnpackingError:
-                error = sys.exc_info()[1]
+            except UnpackingError as error:
                 result.failed(error, error.description())
 
             results = result.collection()
