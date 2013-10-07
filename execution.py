@@ -287,7 +287,8 @@ def get_classes(module):
     import inspect
     import six
     if six.PY2:
-        isfunction = inspect.ismethod
+        def isfunction(a):
+            return inspect.ismethod(a) or inspect.isfunction(a)
     elif six.PY3:
         isfunction = inspect.isfunction
     for class_name, Class in inspect.getmembers(module, inspect.isclass):
