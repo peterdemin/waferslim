@@ -1,6 +1,6 @@
 import unittest
-from .fixtures import echo_fixture
 from waferslim import execution
+from waferslim.tests.fixtures import echo_fixture
 
 
 class ConventionsTestCase(unittest.TestCase):
