@@ -1,5 +1,5 @@
 import unittest
-from fixtures import echo_fixture
+from .fixtures import echo_fixture
 from waferslim import execution
 
 
