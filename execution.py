@@ -285,14 +285,8 @@ def load_package(package_path):
 
 def get_classes(module):
     import inspect
-    import six
-    if six.PY2:
-        def isfunction(a):
-            return inspect.ismethod(a) or inspect.isfunction(a)
-    elif six.PY3:
-        isfunction = inspect.isfunction
     for class_name, Class in inspect.getmembers(module, inspect.isclass):
         methods = [n
-                   for n, _ in inspect.getmembers(Class, isfunction)
+                   for n, _ in inspect.getmembers(Class, inspect.isroutine)
                    if '__' not in n]
         yield (class_name, {'class': Class, 'methods': methods})

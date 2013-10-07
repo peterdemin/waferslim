@@ -63,20 +63,16 @@ class ConventionsTestCase(unittest.TestCase):
 
 
 class GetClassesTestCase(unittest.TestCase):
-    def test_get_classes_find_member_methods(self):
-        self.assertTrue('echo' in self.get_echo_fixture_methods())
+    def test_get_classes_finds_only_methods(self):
+        classes = list(execution.get_classes(echo_fixture))
+        self.assertEqual(len(classes), 1)
+        name, data = classes[0]
+        self.assertEqual(name, 'EchoFixture')
+        self.assertEqual(
+            set(['class_echo', 'static_echo', 'echo']),
+            set(data['methods'])
+        )
 
-    def test_get_classes_find_static_methods(self):
-        self.assertTrue('static_echo' in self.get_echo_fixture_methods())
-
-    def test_get_classes_find_class_methods(self):
-        self.assertTrue('class_echo' in self.get_echo_fixture_methods())
-
-    @staticmethod
-    def get_echo_fixture_methods():
-        return [d
-                for n, d in execution.get_classes(echo_fixture)
-                if n == 'EchoFixture'][0]['methods']
 
 if __name__ == '__main__':
     unittest.main()

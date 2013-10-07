@@ -1,4 +1,6 @@
 class EchoFixture(object):
+    not_method = 'Should not be provided'
+
     def echo(self, value):
         return value
 
