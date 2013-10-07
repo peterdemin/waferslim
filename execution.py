@@ -105,7 +105,11 @@ class Instructions(object):
                 self._logger.warn('Error executing %s:', instruction,
                                   exc_info=1)
                 stop_test = 'stoptest' in type(error).__name__.lower()
-                results.failed(instruction, error.args[0], stop_test)
+                if error.args:
+                    error_message = error.args[0]
+                else:
+                    error_message = type(error).__name__
+                results.failed(instruction, error_message, stop_test)
                 if stop_test:
                     break
 
