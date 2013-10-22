@@ -122,7 +122,9 @@ def _pack_item(item):
     [iiiiii:llllll:item...]'''
     if isinstance(item, list):
         return _pack_item(pack(item))
-    if isinstance(item, str) or isinstance(item, unicode):
+    if isinstance(item, str):
+        item = item.decode(BYTE_ENCODING, 'replace')
+    if isinstance(item, unicode):
         return _ITEM_ENCODING % (len(item), _SEPARATOR, item)
     raise TypeError('%r is not a string' % item)
 
